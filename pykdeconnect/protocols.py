@@ -1,14 +1,13 @@
 import asyncio
-import ssl
 from asyncio import transports, Transport
 from typing import Tuple, TYPE_CHECKING
 
-from cryptography.x509 import load_pem_x509_certificate, load_der_x509_certificate
+from cryptography.x509 import load_der_x509_certificate
 
+from . import devices
 from .const import MIN_PROTOCOL_VERSION
 from .helpers import get_timestamp
 from .payloads import IdentityPayload, PairPayload
-from . import devices
 
 if TYPE_CHECKING:
     from .client import KdeConnectClient

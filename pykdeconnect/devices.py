@@ -1,12 +1,11 @@
-from enum import Enum, IntEnum
-from typing import List, Any, TYPE_CHECKING
+from typing import List, TYPE_CHECKING, Optional
 
 from cryptography.x509 import Certificate
-from typing_extensions import Self
 
 from .const import KdeConnectDeviceType
-from .protocols import DeviceProtocol
 from .payloads import IdentityPayload
+from .protocols import DeviceProtocol
+
 if TYPE_CHECKING:
     from .client import KdeConnectClient
 
@@ -18,7 +17,7 @@ class KdeConnectDevice:
     incoming_capabilities: List[str]
     outgoing_capabilities: List[str]
 
-    certificate: Certificate | None
+    certificate: Optional[Certificate]
 
     protocol: DeviceProtocol
     client: 'KdeConnectClient'
@@ -52,6 +51,9 @@ class KdeConnectDevice:
     def confirm_pair(self):
         self.protocol.send_pairing_packet(True)
         self.set_paired()
+
+    def reject_pair(self):
+        self.protocol.send_pairing_packet(False)
 
     def set_paired(self):
         self.certificate = self.protocol.get_certificate()

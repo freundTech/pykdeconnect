@@ -1,15 +1,15 @@
 import asyncio
 import ssl
-from asyncio import StreamWriter, StreamReader, Queue, BaseEventLoop
+from asyncio import Queue
 from socket import socket, AF_INET, SOCK_DGRAM, SOL_SOCKET, SO_BROADCAST, SOCK_STREAM
-from typing import List, Callable, Awaitable, cast
+from typing import List, Callable, Awaitable, Optional
 
 from cryptography.hazmat.primitives import serialization
-from cryptography.x509 import Certificate
 
 from . import ssl_workaround
-from .config import KdeConnectConfig
-from .const import ADDRESS_BROADCAST, KDECONNECT_PORT, KDECONNECT_PORT_MIN, KDECONNECT_PORT_MAX, KdeConnectDeviceType, \
+from .config import AbstractKdeConnectConfig
+from .const import ADDRESS_BROADCAST, KDECONNECT_PORT, KDECONNECT_PORT_MIN, KDECONNECT_PORT_MAX, \
+    KdeConnectDeviceType, \
     KdeConnectProtocolVersion
 from .devices import KdeConnectDevice
 from .helpers import get_timestamp
@@ -31,13 +31,14 @@ class KdeConnectClient:
     known_devices: List[KdeConnectDevice]
     trusted_devices: List[KdeConnectDevice]
     pairing_queue: Queue
-    pairing_callback: PairingCallback | None
+    pairing_callback: Optional[PairingCallback] = None
 
-    port: int | None = None
+    port: Optional[int] = None
 
-    config: KdeConnectConfig
+    config: AbstractKdeConnectConfig
 
-    def __init__(self, device_name: str, device_type: KdeConnectDeviceType, config: KdeConnectConfig,
+    def __init__(self, device_name: str, device_type: KdeConnectDeviceType,
+                 config: AbstractKdeConnectConfig,
                  protocol_version: KdeConnectProtocolVersion = KdeConnectProtocolVersion.V7):
         self.device_name = device_name
         self.device_type = device_type
@@ -55,8 +56,8 @@ class KdeConnectClient:
     async def start(self, *, advertise_addr: str = ADDRESS_BROADCAST, listen_addr: str = ''):
         loop = asyncio.get_running_loop()
 
-        # create_datagram_endpoint and create_server does not allow binding to all addresses, so we create the socket
-        # manually
+        # create_datagram_endpoint and create_server does not allow binding to all addresses, so
+        # we create the sockets manually
         udp_sock = socket(AF_INET, SOCK_DGRAM)
         udp_sock.setblocking(False)
         udp_sock.bind((listen_addr, KDECONNECT_PORT))
@@ -99,7 +100,7 @@ class KdeConnectClient:
             if result:
                 device.confirm_pair()
             else:
-                device.unpair()
+                device.reject_pair()
         else:
             print(f'"{device.device_name}" requested pairing, but no pairing callback was set. Rejecting.')
             device.unpair()

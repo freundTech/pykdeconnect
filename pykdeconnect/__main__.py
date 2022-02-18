@@ -3,7 +3,8 @@ import asyncio
 from pathlib import Path
 
 from .helpers import keyboard_interrupt
-from .client import KdeConnectClient, KdeConnectDeviceType, KdeConnectConfig
+from .client import KdeConnectClient, KdeConnectDeviceType
+from .config import KdeConnectConfig
 from .devices import KdeConnectDevice
 
 

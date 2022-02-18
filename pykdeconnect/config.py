@@ -1,16 +1,18 @@
+from abc import ABCMeta, abstractmethod
 from configparser import ConfigParser, DuplicateSectionError
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Optional
 
 from cryptography import x509
 from cryptography.x509 import Certificate, load_pem_x509_certificate
-from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
 from .devices import KdeConnectDevice
+from .helpers import CertificateHelper
 
 CONFIG_KEY_GENERAL = 'general'
 CONFIG_KEY_ID = 'id'
@@ -18,10 +20,60 @@ CONFIG_KEY_NAME = 'name'
 CONFIG_KEY_TYPE = 'type'
 
 
-class KdeConnectConfig:
+class AbstractKdeConnectConfig(metaclass=ABCMeta):
+    """
+    A config object storing information on this device and trusted devices
+    """
+    @property
+    @abstractmethod
+    def device_id(self) -> str:
+        """
+        Return the device id of the local device
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def cert_path(self) -> Path:
+        """
+        Return the path to this device's SSL certificate
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def private_key_path(self) -> Path:
+        """
+        Return the path to this device's SSL private key
+        """
+        pass
+
+    @abstractmethod
+    def get_device_cert(self, device: KdeConnectDevice) -> Optional[Certificate]:
+        """
+        Return the SSL certificate of `device` if `device` is trusted or `None` otherwise
+        """
+        pass
+
+    @abstractmethod
+    def trust_device(self, device: KdeConnectDevice):
+        """
+        Mark `device` as trusted. This method should store the devices SSL certificate
+        """
+        pass
+
+    @abstractmethod
+    def untrust_device(self, device: KdeConnectDevice):
+        """
+        Mark `device` as not trusted. This method should delete the devices SSL certificate
+        """
+        pass
+
+
+class KdeConnectConfig(AbstractKdeConnectConfig):
     config: ConfigParser
-    cert_path: Path
-    private_key_path: Path
+    _cert_path: Path
+    _private_key_path: Path
     device_certs_path: Path
     cert: Certificate
     private_key: RSAPrivateKey
@@ -35,21 +87,31 @@ class KdeConnectConfig:
         if not self.config.has_section(CONFIG_KEY_GENERAL):
             self.config.add_section(CONFIG_KEY_GENERAL)
 
-        self.cert_path = path / "cert.pem"
-        self.private_key_path = path / "privateKey.pem"
+        self._cert_path = path / "cert.pem"
+        self._private_key_path = path / "privateKey.pem"
 
         self.device_certs_path = path / "device_certificates"
         self.ensure_is_dir(self.device_certs_path)
 
         if not self.private_key_path.is_file():
-            self.generate_private_key()
+            self.private_key = CertificateHelper.generate_private_key()
+            CertificateHelper.save_private_key(self.private_key_path, self.private_key)
         else:
             self.load_private_key()
 
         if not self.cert_path.is_file():
-            self.generate_cert()
+            self.cert = CertificateHelper.generate_cert(self.device_id, self.private_key)
+            CertificateHelper.save_certificate(self.cert_path, self.cert)
         else:
             self.load_certificate()
+
+    @property
+    def cert_path(self) -> Path:
+        return self._cert_path
+
+    @property
+    def private_key_path(self) -> Path:
+        return self._private_key_path
 
     def ensure_is_dir(self, path: Path):
         if path.is_dir():
@@ -82,7 +144,7 @@ class KdeConnectConfig:
     def get_device_cert_path(self, device: KdeConnectDevice) -> Path:
         return self.device_certs_path / f"{device.device_id}.pem"
 
-    def get_device_cert(self, device: KdeConnectDevice) -> Certificate | None:
+    def get_device_cert(self, device: KdeConnectDevice) -> Optional[Certificate]:
         path = self.get_device_cert_path(device)
         if not path.exists():
             return None
@@ -117,22 +179,6 @@ class KdeConnectConfig:
         with open(self.path / "config.ini", "w+") as f:
             self.config.write(f)
 
-    def generate_private_key(self):
-        self.cert_path.unlink(missing_ok=True)
-
-        key = rsa.generate_private_key(
-            public_exponent=65537,
-            key_size=2048,
-        )
-
-        self.private_key = key
-        with open(self.private_key_path, 'wb+') as f:
-            f.write(key.private_bytes(
-                encoding=serialization.Encoding.PEM,
-                format=serialization.PrivateFormat.TraditionalOpenSSL,
-                encryption_algorithm=serialization.NoEncryption(),
-            ))
-
     def load_private_key(self):
         try:
             with open(self.private_key_path, 'rb') as f:
@@ -140,32 +186,6 @@ class KdeConnectConfig:
                 self.private_key = load_pem_private_key(data, None)
         except:
             self.generate_private_key()
-
-    def generate_cert(self):
-        subject = issuer = x509.Name([
-            x509.NameAttribute(NameOID.COMMON_NAME, self.device_id),
-            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "freundTech"),
-            x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, "pyKDEConnect"),
-        ])
-        cert = x509.CertificateBuilder().subject_name(
-            subject
-        ).issuer_name(
-            issuer
-        ).public_key(
-            self.private_key.public_key()
-        ).serial_number(
-            x509.random_serial_number()
-        ).not_valid_before(
-            # Complain to KDEConnect, not me. That's how they do it
-            datetime.utcnow() - timedelta(days=365)
-        ).not_valid_after(
-            datetime.utcnow() + timedelta(days=10 * 365)
-        ).sign(self.private_key, hashes.SHA256())
-
-        self.cert = cert
-
-        with open(self.cert_path, "wb+") as f:
-            f.write(cert.public_bytes(serialization.Encoding.PEM))
 
     def load_certificate(self):
         try:
