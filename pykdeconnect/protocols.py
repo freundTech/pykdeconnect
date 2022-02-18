@@ -113,7 +113,7 @@ class DeviceProtocol(asyncio.Protocol):
     def connection_made(self, transport: transports.BaseTransport) -> None:
         assert isinstance(transport, Transport)
         self.transport = transport
-        logger.debug("Upgraded connection to TLS:", self.device.device_name)
+        logger.debug(f"Upgraded connection to TLS: {self.device.device_name}")
         self.client.known_devices.append(self.device)
 
     def connection_lost(self, exc: Optional[Exception]) -> None:
