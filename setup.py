@@ -1,4 +1,6 @@
 import os
+
+import setuptools
 from setuptools import setup, Extension
 
 
@@ -6,8 +8,9 @@ def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 
-ssl_workaround = Extension('ssl_workaround',
-                           sources=['ssl_workaround.c'],
+ssl_workaround = Extension('pykdeconnect.ssl_workaround',
+                           sources=['src/ssl_workaround.c'],
+                           include_dirs=['include'],
                            libraries=["ssl"])
 
 
@@ -20,7 +23,7 @@ setup(
     license="MIT",
     keywords="kde connect",
     url="https://github.com/freundTech/pykdeconnect",
-    packages=['pykdeconnect'],
+    packages=setuptools.find_packages(),
     ext_modules=[ssl_workaround],
     long_description=read('README.rst'),
     classifiers=[

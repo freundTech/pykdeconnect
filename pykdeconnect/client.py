@@ -4,10 +4,10 @@ from asyncio import StreamWriter, StreamReader, Queue, BaseEventLoop
 from socket import socket, AF_INET, SOCK_DGRAM, SOL_SOCKET, SO_BROADCAST, SOCK_STREAM
 from typing import List, Callable, Awaitable, cast
 
-import ssl_workaround
 from cryptography.hazmat.primitives import serialization
 from cryptography.x509 import Certificate
 
+from . import ssl_workaround
 from .config import KdeConnectConfig
 from .const import ADDRESS_BROADCAST, KDECONNECT_PORT, KDECONNECT_PORT_MIN, KDECONNECT_PORT_MAX, KdeConnectDeviceType, \
     KdeConnectProtocolVersion

@@ -3,7 +3,7 @@
 /* Include OpenSSL header files */
 #include "openssl/ssl.h"
 
-#include "includes/_ssl.h"
+#include "_ssl.h"
 
 static int always_pass_callback(int preverify_ok, X509_STORE_CTX *x509_ctx)
 {
@@ -48,7 +48,7 @@ static PyMethodDef ssl_workaround_methods[] = {
 PyDoc_STRVAR(ssl_workaround_doc, "A workaround for accepting untrusted tls connections while still requesting a certificate");
 static struct PyModuleDef ssl_workaround_definition = {
     PyModuleDef_HEAD_INIT,
-    "ssl_workaround",
+    "pykdeconnect.ssl_workaround",
     ssl_workaround_doc,
     -1,
     ssl_workaround_methods
