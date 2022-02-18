@@ -185,7 +185,8 @@ class KdeConnectConfig(AbstractKdeConnectConfig):
                 data = f.read()
                 self.private_key = load_pem_private_key(data, None)
         except:
-            self.generate_private_key()
+            self.private_key = CertificateHelper.generate_private_key()
+            CertificateHelper.save_private_key(self.private_key_path, self.private_key)
 
     def load_certificate(self):
         try:
@@ -193,4 +194,5 @@ class KdeConnectConfig(AbstractKdeConnectConfig):
                 data = f.read()
                 self.cert = load_pem_x509_certificate(data)
         except:
-            self.generate_cert()
+            self.cert = CertificateHelper.generate_cert(self.device_id, self.private_key)
+            CertificateHelper.save_certificate(self.cert_path, self.cert)
