@@ -3,7 +3,7 @@ import logging
 import ssl
 from asyncio import Queue
 from socket import socket, AF_INET, SOCK_DGRAM, SOL_SOCKET, SO_BROADCAST, SOCK_STREAM
-from typing import List, Callable, Awaitable, Optional
+from typing import List, Callable, Awaitable, Optional, Dict
 
 from cryptography.hazmat.primitives import serialization
 
@@ -33,8 +33,7 @@ class KdeConnectClient:
     encoder: PayloadEncoder
     decoder: PayloadDecoder
     plugins: List[Plugin]
-    known_devices: List[KdeConnectDevice]
-    trusted_devices: List[KdeConnectDevice]
+    known_devices: Dict[str, KdeConnectDevice]
     pairing_queue: Queue
     pairing_callback: Optional[PairingCallback] = None
 
@@ -54,8 +53,7 @@ class KdeConnectClient:
         self.encoder = PayloadEncoder()
         self.decoder = PayloadDecoder()
         self.plugins = []
-        self.known_devices = []
-        self.trusted_devices = []
+        self.known_devices = {}
         self.pairing_queue = Queue()
 
     async def start(self, *, advertise_addr: str = ADDRESS_BROADCAST, listen_addr: str = ''):
@@ -111,7 +109,7 @@ class KdeConnectClient:
                            f'was set. Rejecting.')
             device.unpair()
 
-    async def advertise_once(self, advertise_addr: str):
+    async def advertise_once(self, advertise_addr: str = ADDRESS_BROADCAST):
         sock = socket(AF_INET, SOCK_DGRAM)
         sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
         try:

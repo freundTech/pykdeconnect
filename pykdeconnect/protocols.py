@@ -37,34 +37,39 @@ class UdpAdvertisementProtocol(asyncio.DatagramProtocol):
         logger.debug(f"Received udp advertisement: {payload}")
         device = devices.KdeConnectDevice.from_payload(payload, self.client)
 
-        if payload.body.tcpPort is not None:
+        if payload.body.tcpPort is not None and device.device_id not in self.client.known_devices:
             loop = asyncio.get_event_loop()
             loop.create_task(self.client.send_tcp_identity(addr[0], payload.body.tcpPort, device))
 
 
 class TcpProtocol(asyncio.Protocol):
     client: 'KdeConnectClient'
-    device: 'devices.KdeConnectDevice'
+    device: Optional['devices.KdeConnectDevice']
     transport: transports.Transport
 
     def __init__(self, client: 'KdeConnectClient'):
         self.client = client
+        self.device = None
 
-    def start_connection(self, device: 'devices.KdeConnectDevice', *, server_side: bool):
-        self.device = device
+    def start_connection(self, *, server_side: bool):
+        assert self.device is not None
         loop = asyncio.get_event_loop()
-        device_listener = device.get_protocol()
+        device_listener = self.device.get_protocol()
         future = loop.create_task(loop.start_tls(
             self.transport, device_listener,
-            self.client.get_ssl_context(server_side, device),
+            self.client.get_ssl_context(server_side, self.device),
             server_side=server_side
         ))
         future.add_done_callback(lambda t: device_listener.connection_made(t.result()))
 
     def connection_lost(self, exc: Optional[Exception]) -> None:
-        logger.warning(f'Lost connection to "{self.device.device_name}" before starting tls')
-        if exc is not None:
-            logger.warning(exc.__traceback__)
+        if self.device is None:
+            logger.warning(f'Lost connection before receiving identity packet')
+        else:
+            del self.client.known_devices[self.device.device_id]
+            logger.warning(f'Lost connection to "{self.device.device_name}" before starting tls')
+            if exc is not None:
+                logger.warning(exc.__traceback__)
 
 
 class TcpServerSideProtocol(TcpProtocol):
@@ -81,9 +86,10 @@ class TcpServerSideProtocol(TcpProtocol):
             self.transport.close()
             return
         logger.debug(f"Received tcp advertisement: {payload}")
-        device = devices.KdeConnectDevice.from_payload(payload, self.client)
+        self.device = devices.KdeConnectDevice.from_payload(payload, self.client)
+        self.client.known_devices[self.device.device_id] = self.device
 
-        self.start_connection(device, server_side=False)
+        self.start_connection(server_side=False)
 
 
 class TcpClientSideProtocol(TcpProtocol):
@@ -94,11 +100,13 @@ class TcpClientSideProtocol(TcpProtocol):
     def connection_made(self, transport: transports.BaseTransport) -> None:
         assert isinstance(transport, Transport)
         self.transport = transport
+        self.client.known_devices[self.device.device_id] = self.device
+
         payload = self.client.encoder.encode(self.client.identity_payload(with_port=False))
         self.transport.write(payload)
         logger.debug(f"Sent identity to {self.transport.get_extra_info('peername')}")
 
-        self.start_connection(self.device, server_side=True)
+        self.start_connection(server_side=True)
 
 
 class DeviceProtocol(asyncio.Protocol):
@@ -114,10 +122,9 @@ class DeviceProtocol(asyncio.Protocol):
         assert isinstance(transport, Transport)
         self.transport = transport
         logger.debug(f"Upgraded connection to TLS: {self.device.device_name}")
-        self.client.known_devices.append(self.device)
 
     def connection_lost(self, exc: Optional[Exception]) -> None:
-        self.client.known_devices.remove(self.device)
+        del self.client.known_devices[self.device.device_id]
 
     def data_received(self, data: bytes) -> None:
         try:
