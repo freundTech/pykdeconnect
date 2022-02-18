@@ -1,3 +1,4 @@
+import logging
 from typing import List, TYPE_CHECKING, Optional
 
 from cryptography.x509 import Certificate
@@ -8,6 +9,9 @@ from .protocols import DeviceProtocol
 
 if TYPE_CHECKING:
     from .client import KdeConnectClient
+
+
+logger = logging.getLogger(__name__)
 
 
 class KdeConnectDevice:
@@ -59,13 +63,13 @@ class KdeConnectDevice:
         self.certificate = self.protocol.get_certificate()
         self.client.config.trust_device(self)
         self.wants_pairing = False
-        print("Paired device", self.device_name)
+        logger.debug(f'Paired device "{self.device_name}"')
 
     def set_unpaired(self):
         self.certificate = None
         self.client.config.untrust_device(self)
         self.wants_pairing = False
-        print("Unpaired device", self.device_name)
+        logger.debug(f'Unpaired device "{self.device_name}"')
 
     @property
     def is_paired(self):

@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import ssl
 from asyncio import Queue
 from socket import socket, AF_INET, SOCK_DGRAM, SOL_SOCKET, SO_BROADCAST, SOCK_STREAM
@@ -16,6 +17,10 @@ from .helpers import get_timestamp
 from .payloads import IdentityPayload, PayloadDecoder, PayloadEncoder
 from .plugins.plugin import Plugin
 from .protocols import UdpAdvertisementProtocol, TcpClientSideProtocol, TcpServerSideProtocol
+
+
+logger = logging.getLogger(__name__)
+
 
 PairingCallback = Callable[[KdeConnectDevice], Awaitable[bool]]
 
@@ -72,12 +77,12 @@ class KdeConnectClient:
                 self.port = port
             except OSError:
                 tcp_sock.close()
-                print(f"Port {port} taken. Trying next")
+                logger.warning(f"Port {port} taken. Trying next")
             else:
                 break
 
         if self.port is None:
-            print("Couldn't bind to a suitable tcp port. Exiting")
+            logger.critical("Couldn't bind to a suitable tcp port. Exiting")
             exit(1)
 
         await loop.create_datagram_endpoint(
@@ -102,7 +107,8 @@ class KdeConnectClient:
             else:
                 device.reject_pair()
         else:
-            print(f'"{device.device_name}" requested pairing, but no pairing callback was set. Rejecting.')
+            logger.warning(f'"{device.device_name}" requested pairing, but no pairing callback '
+                           f'was set. Rejecting.')
             device.unpair()
 
     async def advertise_once(self, advertise_addr: str):
@@ -112,7 +118,7 @@ class KdeConnectClient:
             sock.connect((advertise_addr, KDECONNECT_PORT))
             payload = self.encoder.encode(self.identity_payload(with_port=True))
             sock.send(payload)
-            print("Sent udp advertisement")
+            logger.debug("Sent udp advertisement")
         finally:
             sock.close()
 

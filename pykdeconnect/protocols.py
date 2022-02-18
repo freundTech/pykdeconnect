@@ -1,6 +1,7 @@
 import asyncio
+import logging
 from asyncio import transports, Transport
-from typing import Tuple, TYPE_CHECKING
+from typing import Tuple, TYPE_CHECKING, Optional
 
 from cryptography.x509 import load_der_x509_certificate
 
@@ -11,6 +12,9 @@ from .payloads import IdentityPayload, PairPayload
 
 if TYPE_CHECKING:
     from .client import KdeConnectClient
+
+
+logger = logging.getLogger(__name__)
 
 
 class UdpAdvertisementProtocol(asyncio.DatagramProtocol):
@@ -30,7 +34,7 @@ class UdpAdvertisementProtocol(asyncio.DatagramProtocol):
             return
         if payload.body.protocolVersion < MIN_PROTOCOL_VERSION:
             return
-        print("Received udp advertisement", payload)
+        logger.debug(f"Received udp advertisement: {payload}")
         device = devices.KdeConnectDevice.from_payload(payload, self.client)
 
         if payload.body.tcpPort is not None:
@@ -40,12 +44,14 @@ class UdpAdvertisementProtocol(asyncio.DatagramProtocol):
 
 class TcpProtocol(asyncio.Protocol):
     client: 'KdeConnectClient'
+    device: 'devices.KdeConnectDevice'
     transport: transports.Transport
 
     def __init__(self, client: 'KdeConnectClient'):
         self.client = client
 
     def start_connection(self, device: 'devices.KdeConnectDevice', *, server_side: bool):
+        self.device = device
         loop = asyncio.get_event_loop()
         device_listener = device.get_protocol()
         future = loop.create_task(loop.start_tls(
@@ -55,10 +61,10 @@ class TcpProtocol(asyncio.Protocol):
         ))
         future.add_done_callback(lambda t: device_listener.connection_made(t.result()))
 
-    def connection_lost(self, exc: Exception | None) -> None:
-        print("Lost connection before starting tls")
+    def connection_lost(self, exc: Optional[Exception]) -> None:
+        logger.warning(f'Lost connection to "{self.device.device_name}" before starting tls')
         if exc is not None:
-            print(exc)
+            logger.warning(exc.__traceback__)
 
 
 class TcpServerSideProtocol(TcpProtocol):
@@ -67,7 +73,6 @@ class TcpServerSideProtocol(TcpProtocol):
         self.transport = transport
 
     def data_received(self, data: bytes) -> None:
-        print(data)
         payload = self.client.decoder.decode(data, IdentityPayload)
         if payload.body.deviceId == self.client.config.device_id:
             self.transport.close()
@@ -75,7 +80,7 @@ class TcpServerSideProtocol(TcpProtocol):
         if payload.body.protocolVersion < MIN_PROTOCOL_VERSION:
             self.transport.close()
             return
-        print("Received tcp advertisement", payload)
+        logger.debug(f"Received tcp advertisement: {payload}")
         device = devices.KdeConnectDevice.from_payload(payload, self.client)
 
         self.start_connection(device, server_side=False)
@@ -91,7 +96,7 @@ class TcpClientSideProtocol(TcpProtocol):
         self.transport = transport
         payload = self.client.encoder.encode(self.client.identity_payload(with_port=False))
         self.transport.write(payload)
-        print("Sent identity")
+        logger.debug(f"Sent identity to {self.transport.get_extra_info('peername')}")
 
         self.start_connection(self.device, server_side=True)
 
@@ -108,15 +113,14 @@ class DeviceProtocol(asyncio.Protocol):
     def connection_made(self, transport: transports.BaseTransport) -> None:
         assert isinstance(transport, Transport)
         self.transport = transport
-        print("Upgraded connection to TLS:", self.device.device_name)
+        logger.debug("Upgraded connection to TLS:", self.device.device_name)
         self.client.known_devices.append(self.device)
 
-    def connection_lost(self, exc: Exception | None) -> None:
+    def connection_lost(self, exc: Optional[Exception]) -> None:
         self.client.known_devices.remove(self.device)
 
     def data_received(self, data: bytes) -> None:
         try:
-            print(data)
             payload = self.client.decoder.decode(data)
             if isinstance(payload, PairPayload):
                 if payload.body.pair:
@@ -131,7 +135,7 @@ class DeviceProtocol(asyncio.Protocol):
                 # self.device.handle_message(payload)
                 pass
         except Exception as e:
-            print(e)
+            logger.exception(e)
 
     def send_pairing_packet(self, pair) -> None:
         payload = PairPayload(get_timestamp(), PairPayload.Body(pair))
