@@ -1,0 +1,6 @@
+---
+devices:
+  "123456789":
+      name: "device_name"
+      cert_path: "cert.pem"
+      type: "type"
