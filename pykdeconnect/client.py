@@ -44,6 +44,7 @@ class KdeConnectClient:
     def __init__(self, device_name: str, device_type: KdeConnectDeviceType,
                  config: AbstractKdeConnectConfig,
                  protocol_version: KdeConnectProtocolVersion = KdeConnectProtocolVersion.V7):
+        logger.debug("Client created")
         self.device_name = device_name
         self.device_type = device_type
         self.protocol_version = protocol_version
@@ -62,13 +63,11 @@ class KdeConnectClient:
         # create_datagram_endpoint and create_server does not allow binding to all addresses, so
         # we create the sockets manually
         udp_sock = socket(AF_INET, SOCK_DGRAM)
-        udp_sock.setblocking(False)
         udp_sock.bind((listen_addr, KDECONNECT_PORT))
 
         tcp_sock = None
         for port in range(KDECONNECT_PORT_MIN, KDECONNECT_PORT_MAX):
             tcp_sock = socket(AF_INET, SOCK_STREAM)
-            tcp_sock.setblocking(False)
             try:
                 tcp_sock.bind((listen_addr, port))
                 tcp_sock.listen()

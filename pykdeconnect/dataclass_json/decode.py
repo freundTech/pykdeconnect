@@ -1,7 +1,7 @@
 import dataclasses
 from dataclasses import is_dataclass
 from json import JSONDecoder
-from typing import Any, Dict, TypeVar, overload
+from typing import Any, Dict, TypeVar, overload, _AnnotatedAlias
 
 
 class DataclassDecoder:
@@ -44,6 +44,8 @@ class DataclassDecoder:
             return value
 
         dictionary = value
+        if isinstance(type_, _AnnotatedAlias):
+            type_ = type_.__origin__
 
         if self.type_field in dictionary:
             class_key = dictionary[self.type_field]

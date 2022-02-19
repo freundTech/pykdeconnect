@@ -1,10 +1,10 @@
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod, ABC
 from typing import Type, Sequence
 
 from ..payloads import Payload
 
 
-class Plugin(metaclass=ABCMeta):
+class Plugin(ABC):
     @classmethod
     @abstractmethod
     def get_incoming_payloads(cls) -> Sequence[Type[Payload]]:

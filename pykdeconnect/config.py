@@ -1,15 +1,13 @@
-from abc import ABCMeta, abstractmethod
+import logging
+from abc import abstractmethod, ABC
 from configparser import ConfigParser, DuplicateSectionError
-from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
-from cryptography import x509
-from cryptography.x509 import Certificate, load_pem_x509_certificate
-from cryptography.hazmat.primitives import serialization, hashes
-from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
+from cryptography.x509 import Certificate, load_pem_x509_certificate
 
 from .devices import KdeConnectDevice
 from .helpers import CertificateHelper
@@ -20,7 +18,10 @@ CONFIG_KEY_NAME = 'name'
 CONFIG_KEY_TYPE = 'type'
 
 
-class AbstractKdeConnectConfig(metaclass=ABCMeta):
+logger = logging.getLogger(__name__)
+
+
+class AbstractKdeConnectConfig(ABC):
     """
     A config object storing information on this device and trusted devices
     """
@@ -139,7 +140,7 @@ class KdeConnectConfig(AbstractKdeConnectConfig):
     def untrust_device(self, device: KdeConnectDevice):
         self.config.remove_section(device.device_id)
         self.save()
-        self.get_device_cert_path(device).unlink()
+        self.get_device_cert_path(device).unlink(missing_ok=True)
 
     def get_device_cert_path(self, device: KdeConnectDevice) -> Path:
         return self.device_certs_path / f"{device.device_id}.pem"

@@ -1,6 +1,8 @@
 import asyncio
+from asyncio import Future
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from typing import TypeVar
 
 from cryptography import x509
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
@@ -20,6 +22,15 @@ async def keyboard_interrupt():
             await asyncio.sleep(1)
         except KeyboardInterrupt:
             raise SystemExit
+
+
+T = TypeVar('T')
+
+
+async def async_timeout(future: Future[T], default: T, timeout: int):
+    await asyncio.sleep(timeout)
+    if not future.done():
+        future.set_result(default)
 
 
 class CertificateHelper:

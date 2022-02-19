@@ -1,4 +1,4 @@
-from enum import IntEnum, Enum
+from enum import IntEnum, Enum, auto
 from typing import Any
 
 from typing_extensions import Self
@@ -23,6 +23,12 @@ class KdeConnectDeviceType(Enum):
             return KdeConnectDeviceType.PHONE
         else:
             return KdeConnectDeviceType.UNKNOWN
+
+
+class PairingResult(Enum):
+    ACCEPTED = auto()
+    REJECTED = auto()
+    TIMEOUT = auto()
 
 
 ADDRESS_BROADCAST = "255.255.255.255"

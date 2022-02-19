@@ -1,6 +1,8 @@
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass, field, KW_ONLY
-from typing import List, Annotated, Any, TypeVar, overload, ClassVar, Type
+from typing import List, Annotated, Any, TypeVar, overload, ClassVar, Type, Optional
+
+import voluptuous as vol
 
 from .dataclass_json import Flags, DataclassDecoder, DataclassEncoder
 
@@ -8,6 +10,8 @@ from .dataclass_json import Flags, DataclassDecoder, DataclassEncoder
 @dataclass  # type: ignore[misc]
 class Payload:
     id: int
+    payloadSize: Annotated[Optional[int], Flags.REMOVE_IF_NONE] = field(default=None, init=False)
+    payloadTransferInfo: Annotated[Optional[dict], Flags.REMOVE_IF_NONE] = field(default=None, init=False)
 
     @classmethod
     @property
@@ -26,7 +30,7 @@ class IdentityPayload(Payload):
         deviceType: str
         incomingCapabilities: List[str]
         outgoingCapabilities: List[str]
-        tcpPort: Annotated[int | None, Flags.REMOVE_IF_NONE] = None
+        tcpPort: Annotated[Optional[int], Flags.REMOVE_IF_NONE] = None
 
     body: Body
     type = "kdeconnect.identity"
@@ -70,7 +74,7 @@ class PayloadDecoder:
     encoding: str
 
     def __init__(self, encoding='utf-8'):
-        self.decoder = DataclassDecoder("type", type_map)
+        self.decoder = DataclassDecoder("type", type_map, allow_dicts=True)
         self.encoding = encoding
 
     T = TypeVar('T', bound=Payload)
@@ -84,3 +88,9 @@ class PayloadDecoder:
         return self.decoder.decode(b.decode(self.encoding), type_)
 
 
+payload_schema = vol.Schema({
+    "id": int,
+    "body": dict,
+    vol.Optional("payloadSize", default=0): int,
+    vol.Optional("payloadTransferInfo", default={}): dict
+})

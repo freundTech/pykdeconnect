@@ -1,8 +1,8 @@
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod, ABC
 from typing import Any
 
 
-class Plugin(metaclass=ABCMeta):
+class Plugin(ABC):
     plugin_id: str
 
     @abstractmethod
