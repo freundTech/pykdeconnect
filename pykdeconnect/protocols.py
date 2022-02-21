@@ -1,15 +1,13 @@
 import asyncio
 import logging
-import traceback
-from abc import ABCMeta, abstractmethod, ABC
-from asyncio import transports, Transport
-from typing import Tuple, TYPE_CHECKING, Optional
+from abc import ABC, abstractmethod
+from asyncio import Future, Transport, transports
+from typing import TYPE_CHECKING, Optional, Tuple
 
 from cryptography.x509 import load_der_x509_certificate
 
 from . import devices
 from .const import MIN_PROTOCOL_VERSION
-from .helpers import get_timestamp
 from .payloads import IdentityPayload, PairPayload, Payload
 
 if TYPE_CHECKING:
@@ -19,12 +17,28 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class UdpAdvertisementProtocol(asyncio.DatagramProtocol):
+class KdeConnectProtocol(asyncio.Protocol):
     client: 'KdeConnectClient'
-    transport: transports.Transport
 
     def __init__(self, client: 'KdeConnectClient'):
         self.client = client
+
+
+class PairingProtocol(KdeConnectProtocol):
+    def get_device_from_payload(self, payload: IdentityPayload) -> 'devices.KdeConnectDevice':
+        device_id = payload.body.deviceId
+        device = self.client.get_device(device_id)
+
+        if device is not None:
+            device.update_from_payload(payload)
+        else:
+            device = devices.KdeConnectDevice.from_payload(payload)
+
+        return device
+
+
+class UdpAdvertisementProtocol(PairingProtocol, asyncio.DatagramProtocol):
+    transport: transports.Transport
 
     def connection_made(self, transport: transports.BaseTransport) -> None:
         assert isinstance(transport, transports.Transport)
@@ -32,48 +46,57 @@ class UdpAdvertisementProtocol(asyncio.DatagramProtocol):
         self.transport = transport
 
     def datagram_received(self, data: bytes, addr: Tuple[str, int]) -> None:
-        #payload = self.client.decoder.decode(data, IdentityPayload)
-        if payload.body.deviceId == self.client.config.device_id:
+        payload = self.client.decoder.decode(data, IdentityPayload)
+        device_id = payload.body.deviceId
+        if device_id == self.client.config.device_id:
+            # Don't connect to ourselves
             return
         if payload.body.protocolVersion < MIN_PROTOCOL_VERSION:
-            logger.warning(f"Received udp advertisement with too low protocol version. Ignoring")
+            logger.warning("Received udp advertisement with too low protocol version. Ignoring")
             return
         logger.debug(f"Received udp advertisement: {payload}")
-        device = devices.KdeConnectDevice.from_payload(payload, self.client)
 
-        if payload.body.tcpPort is not None and device.device_id not in self.client.known_devices:
-            self.client.known_devices[device.device_id] = device
-            loop = asyncio.get_event_loop()
-            loop.create_task(self.client.send_tcp_identity(addr[0], payload.body.tcpPort, device))
-        else:
+        device = self.get_device_from_payload(payload)
+
+        if device.is_connected:
             logger.debug("Already connected. Ignoring")
+        elif payload.body.tcpPort is None:
+            logger.debug("Udp identity packet didn't contain tcpPort")
+        else:
+            device.is_connected = True
+            self.client.connected_devices[device.device_id] = device
+            asyncio.create_task(
+                self.client.send_tcp_identity(addr[0], payload.body.tcpPort, device)
+            )
 
 
-class PayloadProtocol(asyncio.Protocol, ABC):
-    client: 'KdeConnectClient'
+class PayloadProtocol(KdeConnectProtocol, ABC):
     buffer: bytearray
 
     def __init__(self, client: 'KdeConnectClient'):
+        super().__init__(client)
         self.client = client
         self.buffer = bytearray()
 
     def data_received(self, data: bytes) -> None:
         self.buffer += data
 
-        payload_str, found, rest = self.buffer.partition(b'\n')
-        if found:
-            self.buffer = rest
-            try:
-                payload = self.client.decoder.decode(payload_str)
-            except (ValueError, TypeError) as e:
-                logger.warning("Received corrupt package:")
-                logger.warning(payload_str.decode('utf-8'))
-                logger.error(e, exc_info=True)
-                return
+        found = bytearray(b'\n')
+        while found:
+            payload_str, found, rest = self.buffer.partition(b'\n')
+            if found:
+                self.parse_payload(payload_str)
+                self.buffer = rest
 
-            self.payload_received(payload)
-        else:
-            self.buffer = payload_str
+    def parse_payload(self, payload_str: bytearray):
+        try:
+            payload = self.client.decoder.decode(payload_str)
+        except (ValueError, TypeError) as e:
+            logger.warning(f"Received corrupt package: {payload_str.decode()}")
+            logger.warning(e, exc_info=True)
+            return
+
+        self.payload_received(payload)
 
     @abstractmethod
     def payload_received(self, payload: Payload):
@@ -91,26 +114,26 @@ class UpgradableProtocol(PayloadProtocol, ABC):
     def start_connection(self, *, server_side: bool):
         assert self.device is not None
         loop = asyncio.get_event_loop()
-        device_listener = self.device.get_protocol()
+        protocol = DeviceProtocol(self.device, self.client, self.transport)
         future = loop.create_task(loop.start_tls(
-            self.transport, device_listener,
+            self.transport, protocol,
             self.client.get_ssl_context(server_side, self.device),
             server_side=server_side
         ))
-        future.add_done_callback(lambda t: device_listener.connection_made(t.result()))
+        future.add_done_callback(lambda t: protocol.connection_made(t.result()))
 
     def connection_lost(self, exc: Optional[Exception]) -> None:
         if self.device is None:
             # logger.warning(f'Lost connection before receiving identity packet')
             pass
         else:
-            del self.client.known_devices[self.device.device_id]
+            del self.client.connected_devices[self.device.device_id]
             logger.warning(f'Lost connection to "{self.device.device_name}" before starting tls')
             if exc is not None:
-                logger.warning(traceback.format_exception(None, exc, exc.__traceback__))
+                logger.warning(exc, exc_info=True)
 
 
-class TcpServerSideProtocol(UpgradableProtocol):
+class TcpServerSideProtocol(PairingProtocol, UpgradableProtocol):
     def connection_made(self, transport: transports.BaseTransport) -> None:
         assert isinstance(transport, Transport)
         self.transport = transport
@@ -120,19 +143,22 @@ class TcpServerSideProtocol(UpgradableProtocol):
             logger.warning("Received payload that isn't an identity packet")
             return
         if payload.body.deviceId == self.client.config.device_id:
+            logger.error("We somehow tried to connect to ourselves. Closing connection")
             self.transport.close()
             return
         if payload.body.protocolVersion < MIN_PROTOCOL_VERSION:
+            logger.warning("Received tcp advertisement with too low protocol version. "
+                           "Closing connection")
             self.transport.close()
             return
-        logger.debug(f"Received tcp advertisement: {payload}")
-        if payload.body.deviceId in self.client.known_devices:
-            logger.debug("Already connected. Ignoring")
-            self.transport.close()
-        else:
-            self.device = devices.KdeConnectDevice.from_payload(payload, self.client)
-            self.client.known_devices[self.device.device_id] = self.device
 
+        logger.debug(f"Received tcp advertisement: {payload}")
+        self.device = self.get_device_from_payload(payload)
+        if self.device.is_connected:
+            logger.warning("Device with existing connection tried to connect again. "
+                           "Ignoring")
+        else:
+            self.client.connected_devices[self.device.device_id] = self.device
             self.start_connection(server_side=False)
 
 
@@ -156,42 +182,74 @@ class TcpClientSideProtocol(UpgradableProtocol):
 
 
 class DeviceProtocol(PayloadProtocol):
-    transport: transports.Transport
-    client: 'KdeConnectClient'
+    _transport: transports.Transport
+    _old_transport: transports.Transport
     device: 'devices.KdeConnectDevice'
 
-    def __init__(self, device: 'devices.KdeConnectDevice', client: 'KdeConnectClient'):
+    on_con_lost: Optional[Future[None]]
+
+    def __init__(self, device: 'devices.KdeConnectDevice', client: 'KdeConnectClient',
+                 old_transport: Transport):
         super().__init__(client)
         self.device = device
+        self._old_transport = old_transport
+        self.on_con_lost = asyncio.get_event_loop().create_future()
 
     def connection_made(self, transport: transports.BaseTransport) -> None:
         assert isinstance(transport, Transport)
-        self.transport = transport
+        self._transport = transport
+        self.device.protocol = self
+        asyncio.create_task(self.client.device_connected(self.device))
         logger.debug(f"Upgraded connection to TLS: {self.device.device_name}")
 
     def connection_lost(self, exc: Optional[Exception]) -> None:
-        del self.client.known_devices[self.device.device_id]
+        self.device.protocol = None
+
+        # TODO: bug
+        del self.client.connected_devices[self.device.device_id]
+        asyncio.create_task(self.client.device_disconnected(self.device))
+
+        if self.on_con_lost is not None:
+            self.on_con_lost.set_result(None)
 
     def payload_received(self, payload: Payload) -> None:
-        logger.debug(f"Received payload {payload}")
         if isinstance(payload, PairPayload):
             if payload.body.pair:
                 if self.device.wants_pairing:
                     self.device.set_paired()
                 else:
-                    loop = asyncio.get_event_loop()
-                    loop.create_task(self.client.on_pairing_request(self.device))
+                    asyncio.create_task(self.client.on_pairing_request(self.device))
             else:
-                self.device.set_unpaired()
+                if self.device.is_paired:
+                    self.device.set_unpaired()
+                    self.client.config.untrust_device(self.device)
         else:
-            # self.device.handle_message(payload)
-            pass
+            if type(payload) in self.device.payload_map:
+                asyncio.create_task(self.device.payload_map[type(payload)].handle_payload(payload))
+            else:
+                logger.debug(f'Received payload {payload} from "{self.device.device_name}" but '
+                             f'found no handler for it')
 
-    def send_pairing_packet(self, pair) -> None:
-        payload = PairPayload(get_timestamp(), PairPayload.Body(pair))
+    def send_pairing_payload(self, pair) -> None:
+        payload = PairPayload(PairPayload.Body(pair))
+        self.send_payload(payload)
+
+    def send_payload(self, payload: Payload):
         payload_str = self.client.encoder.encode(payload)
-        self.transport.write(payload_str)
+        self._transport.write(payload_str)
 
     def get_certificate(self):
-        ssl_obj = self.transport.get_extra_info("ssl_object")
+        ssl_obj = self._transport.get_extra_info("ssl_object")
         return load_der_x509_certificate(ssl_obj.getpeercert(True))
+
+    async def close_connection(self):
+        self._transport.close()
+
+        try:
+            await asyncio.wait_for(asyncio.shield(self.on_con_lost), 1)
+        except asyncio.TimeoutError:
+            # If our partner doesn't close the connection after receiving notify-close we have to
+            # close it ourselves.
+            self._old_transport.close()
+
+            await self.on_con_lost

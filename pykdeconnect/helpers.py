@@ -1,15 +1,15 @@
 import asyncio
-from asyncio import Future
-from datetime import datetime, timezone, timedelta
+from asyncio import CancelledError, Future
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TypeVar
 
 from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 from cryptography.x509 import Certificate
 from cryptography.x509.oid import NameOID
-from cryptography.hazmat.primitives import serialization, hashes
-from cryptography.hazmat.primitives.asymmetric import rsa
 
 
 def get_timestamp() -> int:
@@ -17,11 +17,10 @@ def get_timestamp() -> int:
 
 
 async def keyboard_interrupt():
-    while True:
-        try:
-            await asyncio.sleep(1)
-        except KeyboardInterrupt:
-            raise SystemExit
+    try:
+        await asyncio.Event().wait()
+    except (KeyboardInterrupt, CancelledError):
+        return
 
 
 T = TypeVar('T')

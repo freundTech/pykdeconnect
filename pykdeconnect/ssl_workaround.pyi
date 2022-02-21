@@ -1,2 +1,3 @@
 from ssl import SSLContext
+
 def set_verify_always_pass(ctx: SSLContext, always_pass: bool) -> None: ...

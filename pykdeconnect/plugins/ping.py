@@ -1,8 +1,11 @@
 from dataclasses import dataclass
-from typing import Mapping, Sequence, Type
+from typing import Awaitable, Callable, Set, Type
 
-from .plugin import Plugin
-from ..payloads import Payload
+from pykdeconnect.devices import KdeConnectDevice
+from pykdeconnect.payloads import Payload
+from pykdeconnect.plugin import Plugin
+
+PingCallback = Callable[[], Awaitable[None]]
 
 
 @dataclass
@@ -11,25 +14,53 @@ class PingPayload(Payload):
     class Body:
         pass
 
-    bool: Body
-    type = "kdeconnect.ping"
+    body: Body
+
+    @classmethod
+    def get_type(cls) -> str:
+        return "kdeconnect.ping"
 
 
 class PingReceiverPlugin(Plugin):
-    @classmethod
-    def get_incoming_payloads(cls) -> Sequence[Type[Payload]]:
-        return [PingPayload]
+    callbacks: Set[PingCallback]
+
+    def __init__(self, device: KdeConnectDevice):
+        super().__init__(device)
+        self.callbacks = set()
 
     @classmethod
-    def get_outgoing_payloads(cls) -> Sequence[Type[Payload]]:
-        return []
+    def create_instance(cls, device: KdeConnectDevice):
+        return cls(device)
+
+    @classmethod
+    def get_incoming_payload_types(cls) -> Set[Type[Payload]]:
+        return {PingPayload}
+
+    @classmethod
+    def get_outgoing_payload_types(cls) -> Set[Type[Payload]]:
+        return set()
+
+    async def handle_payload(self, payload):
+        assert isinstance(payload, PingPayload)
+        for callback in self.callbacks:
+            await callback()
+
+    def on_ping(self, callback: PingCallback):
+        self.callbacks.add(callback)
 
 
 class PingSenderPlugin(Plugin):
-    @classmethod
-    def get_incoming_payloads(cls) -> Sequence[Type[Payload]]:
-        return []
+    async def handle_payload(self, payload):
+        pass
 
     @classmethod
-    def get_outgoing_payloads(cls) -> Sequence[Type[Payload]]:
-        return [PingPayload]
+    def create_instance(cls, device: KdeConnectDevice):
+        return cls(device)
+
+    @classmethod
+    def get_incoming_payload_types(cls) -> Set[Type[Payload]]:
+        return set()
+
+    @classmethod
+    def get_outgoing_payload_types(cls) -> Set[Type[Payload]]:
+        return {PingPayload}

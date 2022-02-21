@@ -1,7 +1,4 @@
-from enum import IntEnum, Enum, auto
-from typing import Any
-
-from typing_extensions import Self
+from enum import Enum, IntEnum, auto
 
 
 class KdeConnectProtocolVersion(IntEnum):

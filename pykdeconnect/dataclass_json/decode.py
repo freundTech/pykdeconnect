@@ -1,7 +1,8 @@
 import dataclasses
 from dataclasses import is_dataclass
 from json import JSONDecoder
-from typing import Any, Dict, TypeVar, overload, _AnnotatedAlias
+from typing import _AnnotatedAlias  # type: ignore
+from typing import Any, Dict, Optional, TypeVar, overload
 
 
 class DataclassDecoder:
@@ -32,14 +33,14 @@ class DataclassDecoder:
     @overload
     def decode(self, s: str, type_: None = None) -> Any: ...
 
-    def decode(self, s: str, type_: T | None = None) -> Any:
+    def decode(self, s: str, type_: Optional[T] = None) -> Any:
         obj = self.json_decoder.decode(s)
         return self.value_to_dataclass(obj, type_)
 
     def type_function(self, dictionary: dict) -> type:
         pass
 
-    def value_to_dataclass(self, value: Any, type_: type | None) -> Any:
+    def value_to_dataclass(self, value: Any, type_: Optional[type]) -> Any:
         if not isinstance(value, dict):
             return value
 
@@ -63,6 +64,8 @@ class DataclassDecoder:
             raise ValueError(f'JSON Object doesn\'t contain type field "{self.type_field}"')
 
         if not is_dataclass(class_):
+            if self.allow_dicts:
+                return dictionary
             raise ValueError(f'Tried to decode non dataclass "{class_}"')
 
         for name, field in class_.__dataclass_fields__.items():  # type: ignore[attr-defined]
@@ -71,7 +74,12 @@ class DataclassDecoder:
             elif field.default is not dataclasses.MISSING:
                 dictionary[name] = field.default
             else:
-                raise ValueError(f'JSON is missing key "{name}", but it is required by class "{class_}"')
+                raise ValueError(
+                    f'JSON is missing key "{name}", but it is required by class "{class_}"'
+                )
 
+        # No idea why kdeconnect sends this
+        if "" in dictionary:
+            del dictionary[""]
 
         return class_(**dictionary)

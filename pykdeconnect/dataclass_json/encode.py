@@ -11,7 +11,10 @@ class DataclassEncoder(JSONEncoder):
     allow_unknown_dataclasses: bool
     type_map: Dict[type, str]
 
-    def __init__(self, type_field: str, type_map: Dict[str, type], allow_unknown_dataclasses: bool = True):
+    def __init__(self,
+                 type_field: str,
+                 type_map: Dict[str, type],
+                 allow_unknown_dataclasses: bool = True):
         super().__init__()
         self.type_field = type_field
         self.allow_unknown_dataclasses = allow_unknown_dataclasses

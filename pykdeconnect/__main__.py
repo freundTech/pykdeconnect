@@ -1,14 +1,18 @@
 import argparse
 import asyncio
+import logging
 from pathlib import Path
 
-from .helpers import keyboard_interrupt
-from .client import KdeConnectClient, KdeConnectDeviceType
+from .client import KdeConnectClient
 from .config import KdeConnectConfig
+from .const import KdeConnectDeviceType
 from .devices import KdeConnectDevice
+from .helpers import keyboard_interrupt
+from .plugin_registry import PluginRegistry
 
 
 async def main():
+    logging.basicConfig(level=logging.DEBUG)
     parser = argparse.ArgumentParser(description="KDEConnect implementation in python")
     parser.add_argument("--name", default="PyKDEConnect", help="The name of the KDEConnect client")
     parser.add_argument("--type", choices=[t.value for t in KdeConnectDeviceType], default="phone",
@@ -16,17 +20,21 @@ async def main():
 
     args = parser.parse_args()
     client = KdeConnectClient(args.name, KdeConnectDeviceType(args.type),
-                              KdeConnectConfig(Path.home() / ".config" / "pykdeconnect"))
+                              KdeConnectConfig(Path.home() / ".config" / "pykdeconnect"),
+                              PluginRegistry())
     client.set_pairing_callback(on_pairing_request)
 
     await client.start()
     await keyboard_interrupt()
+    await client.stop()
 
 
 async def on_pairing_request(device: KdeConnectDevice):
-    #print(f'"{device.device_name}" wants to pair. Rejecting.')
     return True
 
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass

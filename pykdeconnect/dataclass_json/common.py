@@ -1,6 +1,6 @@
 from enum import Enum, auto
+from typing import _AnnotatedAlias  # type: ignore
 from typing import Any
-from typing import _AnnotatedAlias # type: ignore
 
 
 class Flags(Enum):

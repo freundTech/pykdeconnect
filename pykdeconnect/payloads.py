@@ -1,22 +1,24 @@
-from abc import ABCMeta, abstractmethod
-from dataclasses import dataclass, field, KW_ONLY
-from typing import List, Annotated, Any, TypeVar, overload, ClassVar, Type, Optional
+from abc import abstractmethod
+from dataclasses import dataclass, field
+from typing import (
+    Annotated, Any, Collection, List, Optional, Type, TypeVar, overload
+)
 
-import voluptuous as vol
+from .dataclass_json import DataclassDecoder, DataclassEncoder, Flags
+from .helpers import get_timestamp
 
-from .dataclass_json import Flags, DataclassDecoder, DataclassEncoder
 
-
+# Mypy has a problem with abstract dataclasses
 @dataclass  # type: ignore[misc]
 class Payload:
-    id: int
-    payloadSize: Annotated[Optional[int], Flags.REMOVE_IF_NONE] = field(default=None, init=False)
-    payloadTransferInfo: Annotated[Optional[dict], Flags.REMOVE_IF_NONE] = field(default=None, init=False)
+    id: int = field(default_factory=get_timestamp, kw_only=True)
+    payloadSize: Annotated[Optional[int], Flags.REMOVE_IF_NONE] = field(default=None, kw_only=True)
+    payloadTransferInfo: Annotated[Optional[dict], Flags.REMOVE_IF_NONE] = field(default=None,
+                                                                                 kw_only=True)
 
     @classmethod
-    @property
     @abstractmethod
-    def type(cls) -> str:
+    def get_type(cls) -> str:
         pass
 
 
@@ -33,7 +35,10 @@ class IdentityPayload(Payload):
         tcpPort: Annotated[Optional[int], Flags.REMOVE_IF_NONE] = None
 
     body: Body
-    type = "kdeconnect.identity"
+
+    @classmethod
+    def get_type(cls) -> str:
+        return "kdeconnect.identity"
 
 
 @dataclass
@@ -43,25 +48,32 @@ class PairPayload(Payload):
         pair: bool
 
     body: Body
-    type = "kdeconnect.pair"
+
+    @classmethod
+    def get_type(cls) -> str:
+        return "kdeconnect.pair"
 
 
-payloads: List[Type[Payload]] = [
-    IdentityPayload,
-    PairPayload
-]
-
-type_map = {
-    payload.type: payload for payload in payloads
+internal_payloads = {
+    IdentityPayload.get_type(): IdentityPayload,
+    PairPayload.get_type(): PairPayload
 }
+
+
+def get_payload_map(payloads: Collection[Type[Payload]]):
+    payload_map = {
+        p.get_type(): p for p in payloads
+    }
+    payload_map.update(internal_payloads)
+    return payload_map
 
 
 class PayloadEncoder:
     encoder: DataclassEncoder
     encoding: str
 
-    def __init__(self, encoding='utf-8'):
-        self.encoder = DataclassEncoder("type", type_map)
+    def __init__(self, payloads: Collection[Type[Payload]], encoding='utf-8'):
+        self.encoder = DataclassEncoder("type", get_payload_map(payloads))
         self.encoding = encoding
 
     def encode(self, o: Any) -> bytes:
@@ -73,8 +85,8 @@ class PayloadDecoder:
     decoder: DataclassDecoder
     encoding: str
 
-    def __init__(self, encoding='utf-8'):
-        self.decoder = DataclassDecoder("type", type_map, allow_dicts=True)
+    def __init__(self, payloads: Collection[Type[Payload]], encoding='utf-8'):
+        self.decoder = DataclassDecoder("type", get_payload_map(payloads), allow_dicts=True)
         self.encoding = encoding
 
     T = TypeVar('T', bound=Payload)
@@ -84,13 +96,5 @@ class PayloadDecoder:
     @overload
     def decode(self, b: bytes, type_: None = None) -> Any: ...
 
-    def decode(self, b: bytes, type_: Type[T] | None = None) -> Any:
+    def decode(self, b: bytes, type_: Optional[Type[T]] = None) -> Any:
         return self.decoder.decode(b.decode(self.encoding), type_)
-
-
-payload_schema = vol.Schema({
-    "id": int,
-    "body": dict,
-    vol.Optional("payloadSize", default=0): int,
-    vol.Optional("payloadTransferInfo", default={}): dict
-})
