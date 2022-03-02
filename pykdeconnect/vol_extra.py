@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import sys
 from functools import lru_cache
-from types import GenericAlias, UnionType
+from types import GenericAlias
 
 from typing_extensions import is_typeddict  # type: ignore
 from typing_extensions import Annotated
@@ -19,15 +19,23 @@ from typing import (  # type: ignore # isort: skip
     _GenericAlias, _SpecialGenericAlias, _TypedDictMeta, cast, get_type_hints
 )
 
+if sys.version_info >= (3, 10):
+    from types import UnionType
+    union = (Union, UnionType)
+    generic_aliases = (GenericAlias, _GenericAlias, UnionType)
+else:
+    union = (Union,)
+    generic_aliases = (GenericAlias, _GenericAlias)
+
 if sys.version_info >= (3, 11):
     HAS_REQUIRED = True
     from typing import NotRequired, Required
-    required = [Required, Required_ex]
-    not_required = [NotRequired, NotRequired_ex]
+    required = (Required, Required_ex)
+    not_required = (NotRequired, NotRequired_ex)
 else:
     HAS_REQUIRED = False
-    required = [Required_ex]
-    not_required = [NotRequired_ex]
+    required = (Required_ex,)
+    not_required = (NotRequired_ex,)
 
 import voluptuous as vol  # type: ignore
 
@@ -57,7 +65,7 @@ def typed_dict_to_schema(typed_dict: _TypedDictMeta):
         return res
 
     def convert_type(typ: Any) -> Tuple[Any, Callable[[str], str | vol.Marker]]:
-        if isinstance(typ, (GenericAlias, _GenericAlias, UnionType)):
+        if isinstance(typ, generic_aliases):
             origin = get_origin(typ)
             args = get_args(typ)
             if origin in simple_aliases:
@@ -68,7 +76,7 @@ def typed_dict_to_schema(typed_dict: _TypedDictMeta):
             elif origin in required:
                 typ, _ = convert_type(args[0])
                 return typ, vol.Required
-            elif origin == Union or origin == UnionType:
+            elif origin in union:
                 types = (convert_type(t)[0] for t in args)
                 return vol.Any(*types), no_extra
             elif origin == Literal:
