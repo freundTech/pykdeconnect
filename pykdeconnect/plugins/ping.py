@@ -1,24 +1,21 @@
-from dataclasses import dataclass
-from typing import Awaitable, Callable, Set, Type
+from typing import Awaitable, Callable, Set
+
+from typing_extensions import TypedDict
 
 from pykdeconnect.devices import KdeConnectDevice
 from pykdeconnect.payloads import Payload
 from pykdeconnect.plugin import Plugin
+from pykdeconnect.vol_extra import verify_typed_dict
 
 PingCallback = Callable[[], Awaitable[None]]
 
 
-@dataclass
+class PingPayloadBody(TypedDict):
+    pass
+
+
 class PingPayload(Payload):
-    @dataclass
-    class Body:
-        pass
-
-    body: Body
-
-    @classmethod
-    def get_type(cls) -> str:
-        return "kdeconnect.ping"
+    body: PingPayloadBody
 
 
 class PingReceiverPlugin(Plugin):
@@ -33,15 +30,15 @@ class PingReceiverPlugin(Plugin):
         return cls(device)
 
     @classmethod
-    def get_incoming_payload_types(cls) -> Set[Type[Payload]]:
-        return {PingPayload}
+    def get_incoming_payload_types(cls) -> Set[str]:
+        return {"kdeconnect.ping"}
 
     @classmethod
-    def get_outgoing_payload_types(cls) -> Set[Type[Payload]]:
+    def get_outgoing_payload_types(cls) -> Set[str]:
         return set()
 
-    async def handle_payload(self, payload):
-        assert isinstance(payload, PingPayload)
+    async def handle_payload(self, payload: Payload):
+        payload = verify_typed_dict(payload, PingPayload)
         for callback in self.callbacks:
             await callback()
 
@@ -58,9 +55,9 @@ class PingSenderPlugin(Plugin):
         return cls(device)
 
     @classmethod
-    def get_incoming_payload_types(cls) -> Set[Type[Payload]]:
+    def get_incoming_payload_types(cls) -> Set[str]:
         return set()
 
     @classmethod
-    def get_outgoing_payload_types(cls) -> Set[Type[Payload]]:
-        return {PingPayload}
+    def get_outgoing_payload_types(cls) -> Set[str]:
+        return {"kdeconnect.ping"}

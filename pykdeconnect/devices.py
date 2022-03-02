@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 from asyncio import Future
@@ -7,17 +9,16 @@ from typing import (
 
 from cryptography.x509 import Certificate
 
-from pykdeconnect.plugin import Plugin
-
 from .const import KdeConnectDeviceType, PairingResult
 from .helpers import async_timeout
-from .payloads import IdentityPayload, Payload
+from .payloads import IdentityPayload
+from .plugin import Plugin
 from .protocols import DeviceProtocol
 
-logger = logging.getLogger(__name__)
-
-
 P = TypeVar('P', bound=Plugin)
+
+
+logger = logging.getLogger(__name__)
 
 
 ConnectionCallback = Callable[[], Awaitable[None]]
@@ -36,7 +37,7 @@ class KdeConnectDevice:
     is_connected: bool = False
 
     plugins: Dict[Type[Plugin], Plugin]
-    payload_map: Dict[Type[Payload], Plugin]
+    payload_map: Dict[str, Plugin]
 
     wants_pairing: bool = False
     pairing_future: Optional[Future[PairingResult]] = None
@@ -109,15 +110,15 @@ class KdeConnectDevice:
         incoming_payload_types = plugin_class.get_incoming_payload_types()
         outgoing_payload_types = plugin_class.get_outgoing_payload_types()
         if not any(
-                payload.get_type() in self.incoming_capabilities
+                payload in self.incoming_capabilities
                 for payload in outgoing_payload_types
         ):
-            raise RuntimeError("Plugin sends payload types that the device doesn't support")
+            raise RuntimeError("Plugin doesn't send any payload types that this device supports")
         if not any(
-                payload.get_type() in self.outgoing_capabilities
+                payload in self.outgoing_capabilities
                 for payload in incoming_payload_types
         ):
-            raise RuntimeError("Plugin receives payload types that the device doesn't support")
+            raise RuntimeError("Plugin doesn't receive any payload types that this device supports")
 
     def get_plugin(self, plugin_class: Type[P], force_load=False) -> P:
         if plugin_class in self.plugins:
@@ -141,24 +142,24 @@ class KdeConnectDevice:
         return self.certificate is not None
 
     @classmethod
-    def from_payload(cls, payload: IdentityPayload) -> 'KdeConnectDevice':
+    def from_payload(cls, payload: IdentityPayload) -> KdeConnectDevice:
         # TODO: Change return type to Self once mypy supports it
         return cls(
-            payload.body.deviceName,
-            payload.body.deviceId,
-            KdeConnectDeviceType(payload.body.deviceType),
-            set(payload.body.incomingCapabilities),
-            set(payload.body.outgoingCapabilities),
+            payload["body"]["deviceName"],
+            payload["body"]["deviceId"],
+            KdeConnectDeviceType(payload["body"]["deviceType"]),
+            set(payload["body"]["incomingCapabilities"]),
+            set(payload["body"]["outgoingCapabilities"]),
             None
         )
 
     def update_from_payload(self, payload: IdentityPayload):
-        if self.device_id != payload.body.deviceId:
+        if self.device_id != payload["body"]["deviceId"]:
             raise ValueError("Payload device id doesn't match device id")
-        self.device_name = payload.body.deviceName
-        self.device_type = KdeConnectDeviceType(payload.body.deviceType)
-        self.incoming_capabilities = set(payload.body.incomingCapabilities)
-        self.outgoing_capabilities = set(payload.body.outgoingCapabilities)
+        self.device_name = payload["body"]["deviceName"]
+        self.device_type = KdeConnectDeviceType(payload["body"]["deviceType"])
+        self.incoming_capabilities = set(payload["body"]["incomingCapabilities"])
+        self.outgoing_capabilities = set(payload["body"]["outgoingCapabilities"])
 
     async def device_connected(self):
         await asyncio.gather(*(callback() for callback in self.device_connected_callbacks))

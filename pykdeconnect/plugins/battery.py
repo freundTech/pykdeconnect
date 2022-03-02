@@ -2,12 +2,15 @@ import asyncio
 from asyncio import Future
 from dataclasses import dataclass
 from enum import Enum
-from typing import Annotated, Awaitable, Callable, Optional, Set, Type
+from typing import Awaitable, Callable, Optional, Set, cast
 
-from pykdeconnect.dataclass_json import Flags
+from typing_extensions import NotRequired, TypedDict
+
 from pykdeconnect.devices import KdeConnectDevice
+from pykdeconnect.helpers import get_timestamp
 from pykdeconnect.payloads import Payload
 from pykdeconnect.plugin import Plugin
+from pykdeconnect.vol_extra import verify_typed_dict
 
 
 class BatteryThreshold(Enum):
@@ -22,33 +25,23 @@ class BatteryState:
     low: bool
 
 
-@dataclass
+class BatteryPayloadBody(TypedDict):
+    currentCharge: int
+    isCharging: bool
+    thresholdEvent: int
+    batteryQuantity: NotRequired[int]
+
+
 class BatteryPayload(Payload):
-    @dataclass
-    class Body:
-        currentCharge: int
-        isCharging: bool
-        thresholdEvent: int
-        batteryQuantity: Annotated[Optional[int], Flags.REMOVE_IF_NONE] = None
-
-    body: Body
-
-    @classmethod
-    def get_type(cls) -> str:
-        return "kdeconnect.battery"
+    body: BatteryPayloadBody
 
 
-@dataclass
+class BatteryRequestBody:
+    request: bool
+
+
 class BatteryRequestPayload(Payload):
-    @dataclass
-    class Body:
-        request: bool
-
-    body: Body
-
-    @classmethod
-    def get_type(cls) -> str:
-        return "kdeconnect.battery.request"
+    body: BatteryRequestBody
 
 
 BatteryChargeCallback = Callable[[int], Awaitable[None]]
@@ -65,29 +58,29 @@ class BatteryReceiverPlugin(Plugin):
     battery_charging_changed_callbacks: Set[BatteryChargingCallback]
     battery_low_changed_callbacks: Set[BatteryLowCallback]
 
-    def __init__(self, device: 'KdeConnectDevice'):
+    def __init__(self, device: KdeConnectDevice):
         super().__init__(device)
         self.battery_charge_changed_callbacks = set()
         self.battery_charging_changed_callbacks = set()
         self.battery_low_changed_callbacks = set()
 
     @classmethod
-    def get_incoming_payload_types(cls) -> Set[Type[Payload]]:
-        return {BatteryPayload}
+    def get_incoming_payload_types(cls) -> Set[str]:
+        return {"kdeconnect.battery"}
 
     @classmethod
-    def get_outgoing_payload_types(cls) -> Set[Type[Payload]]:
-        return {BatteryRequestPayload}
+    def get_outgoing_payload_types(cls) -> Set[str]:
+        return {"kdeconnect.battery.request"}
 
     @classmethod
     def create_instance(cls, device: KdeConnectDevice):
         return cls(device)
 
-    async def handle_payload(self, payload):
-        assert isinstance(payload, BatteryPayload)
-        charge = payload.body.currentCharge
-        charging = payload.body.isCharging
-        low = payload.body.thresholdEvent == BatteryThreshold.LOW
+    async def handle_payload(self, payload: Payload):
+        payload = cast(BatteryPayload, verify_typed_dict(payload, BatteryPayload))
+        charge = payload["body"]["currentCharge"]
+        charging = payload["body"]["isCharging"]
+        low = payload["body"]["thresholdEvent"] == BatteryThreshold.LOW
 
         if self.battery_request_future is not None:
             self.battery_request_future.set_result(BatteryState(charge, charging, low))
@@ -100,7 +93,13 @@ class BatteryReceiverPlugin(Plugin):
         await asyncio.gather(*callbacks)
 
     async def request_battery(self):
-        request_payload = BatteryRequestPayload(BatteryRequestPayload.Body(True))
+        request_payload: BatteryRequestPayload = {
+            "id": get_timestamp(),
+            "type": "kdeconnect.battery.request",
+            "body": {
+                "request": True
+            }
+        }
         if self.device.is_connected:
             assert self.device.protocol is not None
             self.device.protocol.send_payload(request_payload)

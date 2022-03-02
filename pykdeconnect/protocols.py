@@ -1,14 +1,22 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 from abc import ABC, abstractmethod
 from asyncio import Future, Transport, transports
-from typing import TYPE_CHECKING, Optional, Tuple
+from json import JSONDecodeError
+from typing import TYPE_CHECKING, Optional, Tuple, cast
 
 from cryptography.x509 import load_der_x509_certificate
 
 from . import devices
 from .const import MIN_PROTOCOL_VERSION
-from .payloads import IdentityPayload, PairPayload, Payload
+from .helpers import get_timestamp
+from .payloads import (
+    AnyPayload, IdentityPayload, PairPayload, Payload, bytes_to_payload,
+    payload_to_bytes
+)
+from .vol_extra import verify_typed_dict
 
 if TYPE_CHECKING:
     from .client import KdeConnectClient
@@ -18,15 +26,15 @@ logger = logging.getLogger(__name__)
 
 
 class KdeConnectProtocol(asyncio.Protocol):
-    client: 'KdeConnectClient'
+    client: KdeConnectClient
 
-    def __init__(self, client: 'KdeConnectClient'):
+    def __init__(self, client: KdeConnectClient):
         self.client = client
 
 
 class PairingProtocol(KdeConnectProtocol):
-    def get_device_from_payload(self, payload: IdentityPayload) -> 'devices.KdeConnectDevice':
-        device_id = payload.body.deviceId
+    def get_device_from_payload(self, payload: IdentityPayload) -> devices.KdeConnectDevice:
+        device_id = payload["body"]["deviceId"]
         device = self.client.get_device(device_id)
 
         if device is not None:
@@ -46,12 +54,16 @@ class UdpAdvertisementProtocol(PairingProtocol, asyncio.DatagramProtocol):
         self.transport = transport
 
     def datagram_received(self, data: bytes, addr: Tuple[str, int]) -> None:
-        payload = self.client.decoder.decode(data, IdentityPayload)
-        device_id = payload.body.deviceId
+        payload = bytes_to_payload(data)
+        if payload["type"] != "kdeconnect.identity":
+            logger.warning('Received payload with type "%s" over udp', payload["type"])
+            return
+        payload = cast(IdentityPayload, payload)
+        device_id = payload["body"]["deviceId"]
         if device_id == self.client.config.device_id:
             # Don't connect to ourselves
             return
-        if payload.body.protocolVersion < MIN_PROTOCOL_VERSION:
+        if payload["body"]["protocolVersion"] < MIN_PROTOCOL_VERSION:
             logger.warning("Received udp advertisement with too low protocol version. Ignoring")
             return
         logger.debug(f"Received udp advertisement: {payload}")
@@ -60,20 +72,20 @@ class UdpAdvertisementProtocol(PairingProtocol, asyncio.DatagramProtocol):
 
         if device.is_connected:
             logger.debug("Already connected. Ignoring")
-        elif payload.body.tcpPort is None:
+        elif payload["body"]["tcpPort"] is None:
             logger.debug("Udp identity packet didn't contain tcpPort")
         else:
             device.is_connected = True
             self.client.connected_devices[device.device_id] = device
             asyncio.create_task(
-                self.client.send_tcp_identity(addr[0], payload.body.tcpPort, device)
+                self.client.send_tcp_identity(addr[0], payload["body"]["tcpPort"], device)
             )
 
 
 class PayloadProtocol(KdeConnectProtocol, ABC):
     buffer: bytearray
 
-    def __init__(self, client: 'KdeConnectClient'):
+    def __init__(self, client: KdeConnectClient):
         super().__init__(client)
         self.client = client
         self.buffer = bytearray()
@@ -90,8 +102,9 @@ class PayloadProtocol(KdeConnectProtocol, ABC):
 
     def parse_payload(self, payload_str: bytearray):
         try:
-            payload = self.client.decoder.decode(payload_str)
-        except (ValueError, TypeError) as e:
+            payload = bytes_to_payload(payload_str)
+            payload = verify_typed_dict(payload, AnyPayload)
+        except JSONDecodeError as e:
             logger.warning(f"Received corrupt package: {payload_str.decode()}")
             logger.warning(e, exc_info=True)
             return
@@ -104,10 +117,10 @@ class PayloadProtocol(KdeConnectProtocol, ABC):
 
 
 class UpgradableProtocol(PayloadProtocol, ABC):
-    device: Optional['devices.KdeConnectDevice']
+    device: Optional[devices.KdeConnectDevice]
     transport: transports.Transport
 
-    def __init__(self, client: 'KdeConnectClient'):
+    def __init__(self, client: KdeConnectClient):
         super().__init__(client)
         self.device = None
 
@@ -139,14 +152,15 @@ class TcpServerSideProtocol(PairingProtocol, UpgradableProtocol):
         self.transport = transport
 
     def payload_received(self, payload: Payload) -> None:
-        if not isinstance(payload, IdentityPayload):
+        if payload["type"] != "kdeconnect.identity":
             logger.warning("Received payload that isn't an identity packet")
             return
-        if payload.body.deviceId == self.client.config.device_id:
+        payload = cast(IdentityPayload, payload)
+        if payload["body"]["deviceId"] == self.client.config.device_id:
             logger.error("We somehow tried to connect to ourselves. Closing connection")
             self.transport.close()
             return
-        if payload.body.protocolVersion < MIN_PROTOCOL_VERSION:
+        if payload["body"]["protocolVersion"] < MIN_PROTOCOL_VERSION:
             logger.warning("Received tcp advertisement with too low protocol version. "
                            "Closing connection")
             self.transport.close()
@@ -163,7 +177,7 @@ class TcpServerSideProtocol(PairingProtocol, UpgradableProtocol):
 
 
 class TcpClientSideProtocol(UpgradableProtocol):
-    def __init__(self, client: 'KdeConnectClient', device: 'devices.KdeConnectDevice'):
+    def __init__(self, client: KdeConnectClient, device: devices.KdeConnectDevice):
         super().__init__(client)
         self.device = device
 
@@ -171,7 +185,7 @@ class TcpClientSideProtocol(UpgradableProtocol):
         assert isinstance(transport, Transport)
         self.transport = transport
 
-        payload = self.client.encoder.encode(self.client.identity_payload(with_port=False))
+        payload = payload_to_bytes(self.client.identity_payload(with_port=False))
         self.transport.write(payload)
         logger.debug(f"Sent identity to {self.transport.get_extra_info('peername')}")
 
@@ -184,11 +198,11 @@ class TcpClientSideProtocol(UpgradableProtocol):
 class DeviceProtocol(PayloadProtocol):
     _transport: transports.Transport
     _old_transport: transports.Transport
-    device: 'devices.KdeConnectDevice'
+    device: devices.KdeConnectDevice
 
     on_con_lost: Optional[Future[None]]
 
-    def __init__(self, device: 'devices.KdeConnectDevice', client: 'KdeConnectClient',
+    def __init__(self, device: devices.KdeConnectDevice, client: KdeConnectClient,
                  old_transport: Transport):
         super().__init__(client)
         self.device = device
@@ -213,8 +227,9 @@ class DeviceProtocol(PayloadProtocol):
             self.on_con_lost.set_result(None)
 
     def payload_received(self, payload: Payload) -> None:
-        if isinstance(payload, PairPayload):
-            if payload.body.pair:
+        if payload["type"] == "kdeconnect.pair":
+            pairpayload: PairPayload = verify_typed_dict(payload, PairPayload)
+            if pairpayload["body"]["pair"]:
                 if self.device.wants_pairing:
                     self.device.set_paired()
                 else:
@@ -224,18 +239,28 @@ class DeviceProtocol(PayloadProtocol):
                     self.device.set_unpaired()
                     self.client.config.untrust_device(self.device)
         else:
-            if type(payload) in self.device.payload_map:
-                asyncio.create_task(self.device.payload_map[type(payload)].handle_payload(payload))
+            plugin = self.client.plugin_registry.get_plugin_for_type(
+                self.device,
+                payload["type"]
+            )
+            if plugin is not None:
+                asyncio.create_task(plugin.handle_payload(payload))
             else:
                 logger.debug(f'Received payload {payload} from "{self.device.device_name}" but '
                              f'found no handler for it')
 
     def send_pairing_payload(self, pair) -> None:
-        payload = PairPayload(PairPayload.Body(pair))
+        payload: PairPayload = {
+            "id": get_timestamp(),
+            "type": "kdeconnect.pair",
+            "body": {
+                "pair": pair
+            }
+        }
         self.send_payload(payload)
 
     def send_payload(self, payload: Payload):
-        payload_str = self.client.encoder.encode(payload)
+        payload_str = payload_to_bytes(payload)
         self._transport.write(payload_str)
 
     def get_certificate(self):

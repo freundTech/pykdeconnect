@@ -6,7 +6,7 @@ from asyncio.base_events import Server
 from socket import (
     AF_INET, SO_BROADCAST, SOCK_DGRAM, SOCK_STREAM, SOL_SOCKET, socket
 )
-from typing import Awaitable, Callable, Dict, List, Optional, Set
+from typing import Awaitable, Callable, Dict, Optional, Set
 
 from cryptography.hazmat.primitives import serialization
 
@@ -17,8 +17,8 @@ from .const import (
     KDECONNECT_PORT_MIN, KdeConnectDeviceType, KdeConnectProtocolVersion
 )
 from .devices import KdeConnectDevice
-from .payloads import IdentityPayload, PayloadDecoder, PayloadEncoder
-from .plugin import Plugin
+from .helpers import get_timestamp
+from .payloads import IdentityPayload, payload_to_bytes
 from .plugin_registry import PluginRegistry
 from .protocols import (
     TcpClientSideProtocol, TcpServerSideProtocol, UdpAdvertisementProtocol
@@ -36,10 +36,6 @@ class KdeConnectClient:
     device_type: KdeConnectDeviceType
     protocol_version: KdeConnectProtocolVersion
 
-    plugin_registry: PluginRegistry
-    encoder: PayloadEncoder
-    decoder: PayloadDecoder
-    plugins: List[Plugin]
     connected_devices: Dict[str, KdeConnectDevice]
 
     pairing_queue: Queue
@@ -48,9 +44,10 @@ class KdeConnectClient:
     device_connected_callbacks: Set[DeviceCallback]
     device_disconnected_callbacks: Set[DeviceCallback]
 
-    port: Optional[int] = None
+    port: int
 
     config: AbstractKdeConnectConfig
+    plugin_registry: PluginRegistry
 
     udp_transport: Optional[BaseTransport] = None
     tcp_server: Optional[Server] = None
@@ -67,17 +64,16 @@ class KdeConnectClient:
         self.config = config
         self.plugin_registry = plugin_registry
 
-        self.plugins = []
         self.connected_devices = {}
         self.pairing_queue = Queue()
 
         self.device_connected_callbacks = set()
         self.device_disconnected_callbacks = set()
 
-        self.encoder, self.decoder = plugin_registry.get_encoder_decoder_pair()
-
     async def start(self, *, advertise_addr: str = ADDRESS_BROADCAST, listen_addr: str = ''):
         loop = asyncio.get_running_loop()
+
+        self.plugin_registry.lock()
 
         # create_datagram_endpoint and create_server does not allow binding to all addresses, so
         # we create the sockets manually
@@ -85,21 +81,23 @@ class KdeConnectClient:
         udp_sock.bind((listen_addr, KDECONNECT_PORT))
 
         tcp_sock = None
+        found_port = None
         for port in range(KDECONNECT_PORT_MIN, KDECONNECT_PORT_MAX):
             tcp_sock = socket(AF_INET, SOCK_STREAM)
             try:
                 tcp_sock.bind((listen_addr, port))
                 tcp_sock.listen()
-                self.port = port
             except OSError:
                 tcp_sock.close()
                 logger.warning(f"Port {port} taken. Trying next")
             else:
+                found_port = port
                 break
 
-        if self.port is None:
-            logger.critical("Couldn't bind to a suitable tcp port. Exiting")
-            exit(1)
+        if found_port is None:
+            raise RuntimeError("Couldn't bind to a suitable tcp port. Exiting")
+        else:
+            self.port = found_port
 
         self.udp_transport, _ = await loop.create_datagram_endpoint(
             lambda: UdpAdvertisementProtocol(self),
@@ -182,7 +180,7 @@ class KdeConnectClient:
         sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
         try:
             sock.connect((advertise_addr, KDECONNECT_PORT))
-            payload = self.encoder.encode(self.identity_payload(with_port=True))
+            payload = payload_to_bytes(self.identity_payload(with_port=True))
             sock.send(payload)
             logger.debug("Sent udp advertisement")
         finally:
@@ -194,15 +192,22 @@ class KdeConnectClient:
         await loop.create_connection(lambda: TcpClientSideProtocol(self, device), addr, port)
 
     def identity_payload(self, *, with_port: bool) -> IdentityPayload:
-        return IdentityPayload(IdentityPayload.Body(
-            deviceName=self.device_name,
-            deviceId=self.config.device_id,
-            deviceType=self.device_type.value,
-            incomingCapabilities=[p.get_type() for p in self.plugin_registry.incoming_payloads],
-            outgoingCapabilities=[p.get_type() for p in self.plugin_registry.outgoing_payloads],
-            protocolVersion=self.protocol_version.value,
-            tcpPort=self.port if with_port else None,
-        ))
+        payload: IdentityPayload = {
+            "id": get_timestamp(),
+            "type": "kdeconnect.identity",
+            "body": {
+                "deviceName": self.device_name,
+                "deviceId": self.config.device_id,
+                "deviceType": self.device_type.value,
+                "incomingCapabilities": list(self.plugin_registry.incoming_payloads),
+                "outgoingCapabilities": list(self.plugin_registry.outgoing_payloads),
+                "protocolVersion": self.protocol_version.value,
+            }
+        }
+        if with_port:
+            payload["body"]["tcpPort"] = self.port
+
+        return payload
 
     def get_ssl_context(self, server_side: bool, device: KdeConnectDevice):
         if server_side:

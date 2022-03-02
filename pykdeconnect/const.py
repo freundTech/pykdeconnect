@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from enum import Enum, IntEnum, auto
 
 
@@ -14,7 +16,7 @@ class KdeConnectDeviceType(Enum):
     TV = "tv"
     UNKNOWN = "unknown"
 
-    def __missing__(self, key: str) -> 'KdeConnectDeviceType':
+    def __missing__(self, key: str) -> KdeConnectDeviceType:
         # TODO: Change return type to Self once mypy supports it
         if key == "smartphone":  # Alternative name
             return KdeConnectDeviceType.PHONE
