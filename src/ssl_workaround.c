@@ -1,7 +1,7 @@
 #include <Python.h>
 
 /* Include OpenSSL header files */
-#include "openssl/ssl.h"
+#include <openssl/ssl.h>
 
 #include "_ssl.h"
 
