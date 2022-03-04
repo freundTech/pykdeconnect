@@ -124,8 +124,8 @@ class TypedDictVerifier(Generic[T]):
     def __init__(self) -> None:
         raise RuntimeError("This class can't be instantiated directly.")
 
-    def __class_getitem__(cls, typed_dict: Type[T]) -> Type[TypedDictVerifier[T]]:
-        class _TypedDictVerifier(TypedDictVerifier[T]):
+    def __class_getitem__(cls, typed_dict: Type[T]) -> Any:
+        class _TypedDictVerifier(TypedDictVerifier):  # type: ignore[type-arg]
             _typed_dict = typed_dict
             _schema: vol.Schema
 
