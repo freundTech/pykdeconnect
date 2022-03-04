@@ -10,7 +10,7 @@ class Payload(TypedDict):
     id: int | str  # KdeConnect on android sends int, but desktop sends str
     type: str
     payloadSize: NotRequired[int]
-    payloadTransferInfo: NotRequired[dict]
+    payloadTransferInfo: NotRequired[dict[Any, Any]]
 
 
 class AnyPayload(Payload):
@@ -45,9 +45,9 @@ internal_payloads = {
 }
 
 
-def payload_to_bytes(payload: Payload):
+def payload_to_bytes(payload: Payload) -> bytes:
     return json.dumps(payload).encode() + b'\n'
 
 
-def bytes_to_payload(b: bytes | bytearray):
+def bytes_to_payload(b: bytes | bytearray) -> object:
     return json.loads(b.decode())

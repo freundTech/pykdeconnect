@@ -3,16 +3,16 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Set
 
-from pykdeconnect.payloads import Payload
+from .payloads import Payload
 
 if TYPE_CHECKING:
-    from pykdeconnect.devices import KdeConnectDevice
+    from .devices import KdeConnectDevice
 
 
 class Plugin(ABC):
     device: KdeConnectDevice
 
-    def __init__(self, device: KdeConnectDevice):
+    def __init__(self, device: KdeConnectDevice) -> None:
         self.device = device
 
     @classmethod
@@ -27,9 +27,9 @@ class Plugin(ABC):
 
     @classmethod
     @abstractmethod
-    def create_instance(cls, device: KdeConnectDevice):
+    def create_instance(cls, device: KdeConnectDevice) -> Plugin:
         pass
 
     @abstractmethod
-    async def handle_payload(self, payload: Payload):
+    async def handle_payload(self, payload: Payload) -> None:
         pass

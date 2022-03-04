@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional, Set
 
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
+from cryptography.hazmat.primitives.asymmetric.types import PRIVATE_KEY_TYPES
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from cryptography.x509 import Certificate, load_pem_x509_certificate
 
@@ -24,12 +24,12 @@ CONF_KEY_OUTGOING_CAPS = 'outgoing_capabilities'
 logger = logging.getLogger(__name__)
 
 
-def _capabilities_to_str(caps: Set[str]):
+def _capabilities_to_str(caps: Set[str]) -> str:
     return "\n".join(caps)
 
 
 def _str_to_capabilities(string: str) -> Set[str]:
-    return set(str.split("\n"))
+    return set(string.split("\n"))
 
 
 class AbstractKdeConnectConfig(ABC):
@@ -61,14 +61,14 @@ class AbstractKdeConnectConfig(ABC):
         pass
 
     @abstractmethod
-    def trust_device(self, device: KdeConnectDevice):
+    def trust_device(self, device: KdeConnectDevice) -> None:
         """
         Mark `device` as trusted. This method should store the devices SSL certificate
         """
         pass
 
     @abstractmethod
-    def untrust_device(self, device: KdeConnectDevice):
+    def untrust_device(self, device: KdeConnectDevice) -> None:
         """
         Mark `device` as not trusted. This method should delete the devices SSL certificate
         """
@@ -85,9 +85,9 @@ class KdeConnectConfig(AbstractKdeConnectConfig):
     _private_key_path: Path
     device_certs_path: Path
     cert: Certificate
-    private_key: RSAPrivateKey
+    private_key: PRIVATE_KEY_TYPES
 
-    def __init__(self, path: Path):
+    def __init__(self, path: Path) -> None:
         self.path = path
         self.ensure_is_dir(path)
 
@@ -122,7 +122,7 @@ class KdeConnectConfig(AbstractKdeConnectConfig):
     def private_key_path(self) -> Path:
         return self._private_key_path
 
-    def ensure_is_dir(self, path: Path):
+    def ensure_is_dir(self, path: Path) -> None:
         if path.is_dir():
             return
         elif path.exists():
@@ -130,7 +130,7 @@ class KdeConnectConfig(AbstractKdeConnectConfig):
         else:
             path.mkdir(parents=True)
 
-    def trust_device(self, device: KdeConnectDevice):
+    def trust_device(self, device: KdeConnectDevice) -> None:
         try:
             self.config.add_section(device.device_id)
         except DuplicateSectionError:
@@ -147,7 +147,7 @@ class KdeConnectConfig(AbstractKdeConnectConfig):
         with open(self._get_device_cert_path(device.device_id), "wb+") as f:
             f.write(cert.public_bytes(serialization.Encoding.PEM))
 
-    def untrust_device(self, device: KdeConnectDevice):
+    def untrust_device(self, device: KdeConnectDevice) -> None:
         self.config.remove_section(device.device_id)
         self.save()
         self._get_device_cert_path(device.device_id).unlink(missing_ok=True)
@@ -169,28 +169,30 @@ class KdeConnectConfig(AbstractKdeConnectConfig):
 
     @property
     def device_id(self) -> str:
-        device_id = self.config[CONF_KEY_GENERAL].get(CONF_KEY_ID, None)
-        if device_id is None:
+        if CONF_KEY_ID not in self.config[CONF_KEY_GENERAL]:
             device_id = '1234567890'
             self.config[CONF_KEY_GENERAL][CONF_KEY_ID] = device_id
             self.save()
+        else:
+            device_id = self.config[CONF_KEY_GENERAL].get(CONF_KEY_ID, None)
+
         return device_id
 
     @device_id.setter
-    def device_id(self, value: str):
+    def device_id(self, value: str) -> None:
         self.config[CONF_KEY_GENERAL][CONF_KEY_ID] = value
         self.save()
 
-    def save(self):
+    def save(self) -> None:
         with open(self.path / "config.ini", "w+") as f:
             self.config.write(f)
 
-    def load_private_key(self):
+    def load_private_key(self) -> None:
         with open(self.private_key_path, 'rb') as f:
             data = f.read()
             self.private_key = load_pem_private_key(data, None)
 
-    def load_certificate(self):
+    def load_certificate(self) -> None:
         with open(self.cert_path, 'rb') as f:
             data = f.read()
             self.cert = load_pem_x509_certificate(data)

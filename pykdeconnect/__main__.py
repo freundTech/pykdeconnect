@@ -11,7 +11,7 @@ from .helpers import keyboard_interrupt
 from .plugin_registry import PluginRegistry
 
 
-async def main():
+async def main() -> None:
     logging.basicConfig(level=logging.DEBUG)
     parser = argparse.ArgumentParser(description="KDEConnect implementation in python")
     parser.add_argument("--name", default="PyKDEConnect", help="The name of the KDEConnect client")
@@ -29,7 +29,7 @@ async def main():
     await client.stop()
 
 
-async def on_pairing_request(device: KdeConnectDevice):
+async def on_pairing_request(_: KdeConnectDevice) -> bool:
     return True
 
 
