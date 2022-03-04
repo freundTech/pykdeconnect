@@ -8,7 +8,7 @@ from .const import KdeConnectDeviceType
 from .devices import KdeConnectDevice
 from .helpers import keyboard_interrupt
 from .plugin_registry import PluginRegistry
-from .storage import Storage
+from .storage import FileStorage
 
 
 async def main() -> None:
@@ -20,7 +20,7 @@ async def main() -> None:
 
     args = parser.parse_args()
     client = KdeConnectClient(args.name, KdeConnectDeviceType(args.type),
-                              Storage(Path.home() / ".config" / "pykdeconnect"),
+                              FileStorage(Path.home() / ".config" / "pykdeconnect"),
                               PluginRegistry())
     client.set_pairing_callback(on_pairing_request)
 

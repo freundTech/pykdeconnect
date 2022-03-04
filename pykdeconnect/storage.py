@@ -76,7 +76,7 @@ class AbstractStorage(ABC):
         pass
 
 
-class Storage(AbstractStorage):
+class FileStorage(AbstractStorage):
     _config: ConfigParser
     _cert_path: Path
     _private_key_path: Path
