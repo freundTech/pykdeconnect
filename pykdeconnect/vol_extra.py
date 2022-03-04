@@ -41,7 +41,7 @@ import voluptuous as vol  # type: ignore
 _simple_aliases = {list, set, frozenset}
 
 
-def _no_extra(x: str) -> str:
+def _no_extra(x: Any) -> Any:
     return x
 
 

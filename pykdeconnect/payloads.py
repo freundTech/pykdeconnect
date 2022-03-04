@@ -10,7 +10,7 @@ class Payload(TypedDict):
     id: int | str  # KdeConnect on android sends int, but desktop sends str
     type: str
     payloadSize: NotRequired[int]
-    payloadTransferInfo: NotRequired[dict[Any, Any]]
+    payloadTransferInfo: NotRequired[dict]  # type: ignore
 
 
 class AnyPayload(Payload):
