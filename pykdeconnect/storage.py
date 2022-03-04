@@ -208,4 +208,3 @@ class Storage(AbstractStorage):
         with open(self.cert_path, 'rb') as f:
             data = f.read()
             self._cert = load_pem_x509_certificate(data)
-

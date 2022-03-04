@@ -105,14 +105,14 @@ class KdeConnectDevice:
 
         self.certificate = certificate
         self.wants_pairing = False
-        logger.debug(f'Paired device "{self.device_name}"')
+        logger.debug('Paired device "%s"', self.device_name)
         if self.pairing_future is not None:
             self.pairing_future.set_result(PairingResult.ACCEPTED)
 
     def set_unpaired(self) -> None:
         self.certificate = None
         self.wants_pairing = False
-        logger.debug(f'Unpaired device "{self.device_name}"')
+        logger.debug('Unpaired device "%s"', self.device_name)
         if self.pairing_future is not None:
             self.pairing_future.set_result(PairingResult.REJECTED)
 

@@ -4,11 +4,11 @@ import logging
 from pathlib import Path
 
 from .client import KdeConnectClient
-from .storage import Storage
 from .const import KdeConnectDeviceType
 from .devices import KdeConnectDevice
 from .helpers import keyboard_interrupt
 from .plugin_registry import PluginRegistry
+from .storage import Storage
 
 
 async def main() -> None:

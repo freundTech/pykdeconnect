@@ -8,7 +8,6 @@ from socket import (
 )
 from typing import Optional
 
-from .storage import AbstractStorage
 from .const import (
     ADDRESS_BROADCAST, KDECONNECT_PORT, KDECONNECT_PORT_MAX,
     KDECONNECT_PORT_MIN, KdeConnectDeviceType, KdeConnectProtocolVersion
@@ -19,6 +18,7 @@ from .helpers import get_timestamp
 from .payloads import IdentityPayload, payload_to_bytes
 from .plugin_registry import PluginRegistry
 from .protocols import TcpServerSideProtocol, UdpAdvertisementProtocol
+from .storage import AbstractStorage
 
 logger = logging.getLogger(__name__)
 
@@ -132,7 +132,7 @@ class KdeConnectClient:
                 tcp_sock.listen()
             except OSError:
                 tcp_sock.close()
-                logger.warning(f"Port {port} taken. Trying next")
+                logger.warning("Port %d taken. Trying next", port)
             else:
                 self._client_info.port = port
                 break

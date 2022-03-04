@@ -89,7 +89,7 @@ class UdpAdvertisementProtocol(PairingProtocol, asyncio.DatagramProtocol):
         if payload["body"]["protocolVersion"] < MIN_PROTOCOL_VERSION:
             logger.warning("Received udp advertisement with too low protocol version. Ignoring")
             return
-        logger.debug(f"Received udp advertisement: {payload}")
+        logger.debug("Received udp advertisement: %s", payload)
 
         device = self.get_device_from_payload(payload)
 
@@ -144,7 +144,7 @@ class PayloadProtocol(KdeConnectProtocol, ABC):
             payload = bytes_to_payload(payload_str)
             payload = self._any_payload_verifier.verify(payload)
         except JSONDecodeError as e:
-            logger.warning(f"Received corrupt package: {payload_str.decode()}")
+            logger.warning("Received corrupt package: %s", payload_str.decode())
             logger.warning(e, exc_info=True)
             return
 
@@ -192,7 +192,7 @@ class UpgradableProtocol(PayloadProtocol, ABC):
             pass
         else:
             del self._device_manager.connected_devices[self._device.device_id]
-            logger.warning(f'Lost connection to "{self._device.device_name}" before starting tls')
+            logger.warning('Lost connection to "%s" before starting tls', self._device.device_name)
             if exc is not None:
                 logger.warning(exc, exc_info=True)
 
@@ -217,7 +217,7 @@ class TcpServerSideProtocol(PairingProtocol, UpgradableProtocol):
             self._transport.close()
             return
 
-        logger.debug(f"Received tcp advertisement: {payload}")
+        logger.debug("Received tcp advertisement: %s", payload)
         self._device = self.get_device_from_payload(payload)
         if self._device.is_connected:
             logger.warning("Device with existing connection tried to connect again. "
@@ -244,7 +244,7 @@ class TcpClientSideProtocol(UpgradableProtocol):
 
         payload = payload_to_bytes(self._client_info.identity_payload(with_port=False))
         self._transport.write(payload)
-        logger.debug(f"Sent identity to {self._transport.get_extra_info('peername')}")
+        logger.debug("Sent identity to %s", self._transport.get_extra_info('peername'))
 
         self.start_connection(server_side=True)
 
@@ -281,7 +281,7 @@ class DeviceProtocol(PayloadProtocol):
         self._transport = transport
         self._device.protocol = self
         asyncio.create_task(self._device_manager.device_connected(self._device))
-        logger.debug(f"Upgraded connection to TLS: {self._device.device_name}")
+        logger.debug("Upgraded connection to TLS: %s", self._device.device_name)
 
     def connection_lost(self, exc: Optional[Exception]) -> None:
         self._device.protocol = None
@@ -309,8 +309,11 @@ class DeviceProtocol(PayloadProtocol):
             if plugin is not None:
                 asyncio.create_task(plugin.handle_payload(payload))
             else:
-                logger.debug(f'Received payload {payload} from "{self._device.device_name}" but '
-                             f'found no handler for it')
+                logger.debug(
+                    'Received payload %s from "%s" but found no handler for it',
+                    payload,
+                    self._device.device_name
+                )
 
     def send_pairing_payload(self, pair: bool) -> None:
         payload: PairPayload = {

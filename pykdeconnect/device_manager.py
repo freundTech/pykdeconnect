@@ -4,8 +4,8 @@ import asyncio
 import logging
 from typing import Awaitable, Callable, Optional, Set
 
-from .storage import AbstractStorage
 from .devices import KdeConnectDevice
+from .storage import AbstractStorage
 
 logger = logging.getLogger(__name__)
 
@@ -55,8 +55,10 @@ class DeviceManager:
             else:
                 device.reject_pair()
         else:
-            logger.warning(f'"{device.device_name}" requested pairing, but no pairing callback '
-                           f'was set. Rejecting.')
+            logger.warning(
+                '"%s" requested pairing, but no pairing callback was set. Rejecting.',
+                device.device_name
+            )
             device.unpair()
 
     def unpair(self, device: KdeConnectDevice) -> None:
