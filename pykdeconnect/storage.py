@@ -33,7 +33,7 @@ def _str_to_capabilities(string: str) -> Set[str]:
 
 
 class AbstractStorage(ABC):
-    """A config object storing information on this device and trusted devices."""
+    """A storage object storing information on this device and trusted devices."""
     @property
     @abstractmethod
     def device_id(self) -> str:

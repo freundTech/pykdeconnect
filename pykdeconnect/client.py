@@ -29,19 +29,19 @@ class ClientInfo:
     protocol_version: KdeConnectProtocolVersion
     port: Optional[int]
 
-    _config: AbstractStorage
+    _storage: AbstractStorage
     _plugin_registry: PluginRegistry
 
     def __init__(
             self,
-            config: AbstractStorage,
+            storage: AbstractStorage,
             plugin_registry: PluginRegistry,
             device_name: str,
             device_type: KdeConnectDeviceType,
             protocol_version: KdeConnectProtocolVersion,
             port: Optional[int] = None
     ) -> None:
-        self._config = config
+        self._storage = storage
         self._plugin_registry = plugin_registry
 
         self.device_name = device_name
@@ -51,15 +51,15 @@ class ClientInfo:
 
     @property
     def device_id(self) -> str:
-        return self._config.device_id
+        return self._storage.device_id
 
     @property
     def private_key_path(self) -> Path:
-        return self._config.private_key_path
+        return self._storage.private_key_path
 
     @property
     def cert_path(self) -> Path:
-        return self._config.cert_path
+        return self._storage.cert_path
 
     def identity_payload(self, *, with_port: bool) -> IdentityPayload:
         payload: IdentityPayload = {
@@ -85,29 +85,29 @@ class KdeConnectClient:
     _client_info: ClientInfo
     _device_manager: DeviceManager
 
-    _config: AbstractStorage
+    _storage: AbstractStorage
     _plugin_registry: PluginRegistry
 
     _udp_transport: Optional[BaseTransport] = None
     _tcp_server: Optional[Server] = None
 
     def __init__(self, device_name: str, device_type: KdeConnectDeviceType,
-                 config: AbstractStorage,
+                 storage: AbstractStorage,
                  plugin_registry: PluginRegistry,
                  protocol_version: KdeConnectProtocolVersion = KdeConnectProtocolVersion.V7):
         logger.debug("Client created")
         self._client_info = ClientInfo(
-            config,
+            storage,
             plugin_registry,
             device_name,
             device_type,
             protocol_version
         )
 
-        self._config = config
+        self._storage = storage
         self._plugin_registry = plugin_registry
 
-        self._device_manager = DeviceManager(config)
+        self._device_manager = DeviceManager(storage)
 
     async def start(
             self,
