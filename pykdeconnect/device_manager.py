@@ -4,7 +4,7 @@ import asyncio
 import logging
 from typing import Awaitable, Callable, Optional, Set
 
-from .config import AbstractKdeConnectConfig
+from .storage import AbstractStorage
 from .devices import KdeConnectDevice
 
 logger = logging.getLogger(__name__)
@@ -17,14 +17,14 @@ DeviceCallback = Callable[[KdeConnectDevice], Awaitable[None]]
 class DeviceManager:
     connected_devices: dict[str, KdeConnectDevice]
 
-    _config: AbstractKdeConnectConfig
+    _config: AbstractStorage
 
     _pairing_callback: Optional[PairingCallback] = None
 
     _device_connected_callbacks: Set[DeviceCallback]
     _device_disconnected_callbacks: Set[DeviceCallback]
 
-    def __init__(self, config: AbstractKdeConnectConfig) -> None:
+    def __init__(self, config: AbstractStorage) -> None:
         self._config = config
 
         self.connected_devices = {}
@@ -36,7 +36,7 @@ class DeviceManager:
         if device_id in self.connected_devices:
             return self.connected_devices[device_id]
 
-        return self._config.get_device(device_id)
+        return self._config.load_device(device_id)
 
     async def disconnect_all(self) -> None:
         await asyncio.gather(
@@ -51,7 +51,7 @@ class DeviceManager:
             result = await self._pairing_callback(device)
             if result:
                 device.confirm_pair()
-                self._config.trust_device(device)
+                self._config.store_device(device)
             else:
                 device.reject_pair()
         else:
@@ -60,7 +60,7 @@ class DeviceManager:
             device.unpair()
 
     def unpair(self, device: KdeConnectDevice) -> None:
-        self._config.untrust_device(device)
+        self._config.remove_device(device)
         device.set_unpaired()
 
     async def device_connected(self, device: KdeConnectDevice) -> None:

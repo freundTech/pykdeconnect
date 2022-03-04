@@ -8,7 +8,7 @@ from socket import (
 )
 from typing import Optional
 
-from .config import AbstractKdeConnectConfig
+from .storage import AbstractStorage
 from .const import (
     ADDRESS_BROADCAST, KDECONNECT_PORT, KDECONNECT_PORT_MAX,
     KDECONNECT_PORT_MIN, KdeConnectDeviceType, KdeConnectProtocolVersion
@@ -29,12 +29,12 @@ class ClientInfo:
     protocol_version: KdeConnectProtocolVersion
     port: Optional[int]
 
-    _config: AbstractKdeConnectConfig
+    _config: AbstractStorage
     _plugin_registry: PluginRegistry
 
     def __init__(
             self,
-            config: AbstractKdeConnectConfig,
+            config: AbstractStorage,
             plugin_registry: PluginRegistry,
             device_name: str,
             device_type: KdeConnectDeviceType,
@@ -85,14 +85,14 @@ class KdeConnectClient:
     _client_info: ClientInfo
     _device_manager: DeviceManager
 
-    _config: AbstractKdeConnectConfig
+    _config: AbstractStorage
     _plugin_registry: PluginRegistry
 
     _udp_transport: Optional[BaseTransport] = None
     _tcp_server: Optional[Server] = None
 
     def __init__(self, device_name: str, device_type: KdeConnectDeviceType,
-                 config: AbstractKdeConnectConfig,
+                 config: AbstractStorage,
                  plugin_registry: PluginRegistry,
                  protocol_version: KdeConnectProtocolVersion = KdeConnectProtocolVersion.V7):
         logger.debug("Client created")

@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 
 from .client import KdeConnectClient
-from .config import KdeConnectConfig
+from .storage import Storage
 from .const import KdeConnectDeviceType
 from .devices import KdeConnectDevice
 from .helpers import keyboard_interrupt
@@ -20,7 +20,7 @@ async def main() -> None:
 
     args = parser.parse_args()
     client = KdeConnectClient(args.name, KdeConnectDeviceType(args.type),
-                              KdeConnectConfig(Path.home() / ".config" / "pykdeconnect"),
+                              Storage(Path.home() / ".config" / "pykdeconnect"),
                               PluginRegistry())
     client.set_pairing_callback(on_pairing_request)
 
