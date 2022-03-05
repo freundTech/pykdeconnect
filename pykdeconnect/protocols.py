@@ -284,10 +284,10 @@ class DeviceProtocol(PayloadProtocol):
         logger.debug("Upgraded connection to TLS: %s", self._device.device_name)
 
     def connection_lost(self, exc: Optional[Exception]) -> None:
+        logger.debug("Connection lost to %s", self._device.device_name)
+        del self._device_manager.connected_devices[self._device.device_id]
         self._device.protocol = None
 
-        # TODO: bug
-        del self._device_manager.connected_devices[self._device.device_id]
         asyncio.create_task(self._device_manager.device_disconnected(self._device))
 
         self._on_con_lost.set_result(None)

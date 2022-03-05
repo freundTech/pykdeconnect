@@ -175,7 +175,7 @@ class KdeConnectClient:
     def pairable_devices(self) -> list[KdeConnectDevice]:
         return [
             d for d in self._device_manager.connected_devices.values()
-            if d.protocol is not None and not d.is_paired
+            if not d.is_paired
         ]
 
     @property
