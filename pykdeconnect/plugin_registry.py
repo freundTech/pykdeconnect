@@ -4,6 +4,7 @@ import importlib
 from collections import defaultdict
 from typing import TYPE_CHECKING, Optional, Set, Type, TypeVar, cast
 
+from .exceptions import IncompatiblePluginError
 from .plugin import Plugin
 
 if TYPE_CHECKING:
@@ -90,6 +91,14 @@ class PluginRegistry:
 
         return self.get_plugin(device, plugin_class)
 
+    def is_plugin_compatible(self, device: KdeConnectDevice, plugin_class: Type[Plugin]):
+        try:
+            self._check_plugin_compatibility(device, plugin_class)
+        except IncompatiblePluginError:
+            return False
+        else:
+            return True
+
     @staticmethod
     def _check_plugin_compatibility(device: KdeConnectDevice, plugin_class: Type[Plugin]) -> None:
         incoming_payload_types = plugin_class.get_incoming_payload_types()
@@ -98,9 +107,13 @@ class PluginRegistry:
                 payload in device.incoming_capabilities
                 for payload in outgoing_payload_types
         ):
-            raise RuntimeError("Plugin doesn't send any payload types that this device supports")
+            raise IncompatiblePluginError(
+                "Plugin doesn't send any payload types that this device supports"
+            )
         if not any(
                 payload in device.outgoing_capabilities
                 for payload in incoming_payload_types
         ):
-            raise RuntimeError("Plugin doesn't receive any payload types that this device supports")
+            raise IncompatiblePluginError(
+                "Plugin doesn't receive any payload types that this device supports"
+            )
