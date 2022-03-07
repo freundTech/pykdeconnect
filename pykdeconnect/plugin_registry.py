@@ -101,19 +101,17 @@ class PluginRegistry:
 
     @staticmethod
     def _check_plugin_compatibility(device: KdeConnectDevice, plugin_class: Type[Plugin]) -> None:
-        incoming_payload_types = plugin_class.get_incoming_payload_types()
-        outgoing_payload_types = plugin_class.get_outgoing_payload_types()
-        if not any(
+        if not all(
                 payload in device.incoming_capabilities
-                for payload in outgoing_payload_types
+                for payload in plugin_class.get_outgoing_payload_types()
         ):
             raise IncompatiblePluginError(
-                "Plugin doesn't send any payload types that this device supports"
+                "Device doesn't support all payloads sent by this plugin"
             )
-        if not any(
+        if not all(
                 payload in device.outgoing_capabilities
-                for payload in incoming_payload_types
+                for payload in plugin_class.get_incoming_payload_types()
         ):
             raise IncompatiblePluginError(
-                "Plugin doesn't receive any payload types that this device supports"
+                "This plugin receives payloads not supported by this device"
             )
