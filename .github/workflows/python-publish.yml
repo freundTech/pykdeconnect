@@ -61,6 +61,10 @@ jobs:
         with:
           platforms: all
 
+      - name: Install OpenSSL headers
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y libssl-dev
+
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.3.1
         env:
