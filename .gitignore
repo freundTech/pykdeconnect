@@ -3,6 +3,8 @@ build/
 dist/
 *.egg-info/
 venv/
+.venv/
+.tox/
 __pycache__/
 .idea/
 

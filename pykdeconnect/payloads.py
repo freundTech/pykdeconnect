@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import json
-from typing import Any, List
+from typing import Any, List, Union
 
 from typing_extensions import NotRequired, TypedDict
 
 
 class Payload(TypedDict):
-    id: int | str  # KdeConnect on android sends int, but desktop sends str
+    id: Union[int, str]  # KdeConnect on android sends int, but desktop sends str
     type: str
     payloadSize: NotRequired[int]
     payloadTransferInfo: NotRequired[dict]  # type: ignore

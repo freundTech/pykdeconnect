@@ -17,16 +17,16 @@ from typing_extensions import get_args, get_origin, get_type_hints
 
 from typing import (  # type: ignore # isort: skip
     Any, Annotated, Callable, Literal, Tuple, Type, TypeVar, Union,
-    _GenericAlias, _TypedDictMeta, cast, Generic
+    _GenericAlias, _TypedDictMeta, _SpecialGenericAlias, cast, Generic
 )
 
 if sys.version_info >= (3, 10):
     from types import UnionType
     union = (Union, UnionType)
-    generic_aliases = (GenericAlias, _GenericAlias, UnionType)
+    generic_aliases = (GenericAlias, _GenericAlias, _SpecialGenericAlias, UnionType)
 else:
     union = (Union,)
-    generic_aliases = (GenericAlias, _GenericAlias)
+    generic_aliases = (GenericAlias, _SpecialGenericAlias, _GenericAlias)
 
 if sys.version_info >= (3, 11):
     from typing import NotRequired, Required
@@ -43,13 +43,6 @@ _simple_aliases = {list, set, frozenset}
 
 def _no_extra(x: Any) -> Any:
     return x
-
-
-class Vol:
-    schema: Any
-
-    def __init__(self, schema: Any):
-        self.schema = schema
 
 
 def typed_dict_to_schema(typed_dict: _TypedDictMeta) -> vol.Schema:
@@ -70,7 +63,7 @@ def typed_dict_to_schema(typed_dict: _TypedDictMeta) -> vol.Schema:
                 if len(args) == 0:
                     return origin, _no_extra
                 else:
-                    return origin([convert_type(args[0])]), _no_extra
+                    return origin([convert_type(args[0])[0]]), _no_extra
             elif origin in not_required:
                 typ, _ = convert_type(args[0])
                 return typ, vol.Optional
@@ -83,21 +76,19 @@ def typed_dict_to_schema(typed_dict: _TypedDictMeta) -> vol.Schema:
             elif origin == Literal:
                 return args[0], _no_extra
             elif origin == Annotated:
-                validators = [convert_type(args[0])[0]]
-                for v in args[1:]:
-                    if isinstance(v, Vol):
-                        validators.append(v.schema)
-                return vol.All(*validators), _no_extra
+                return convert_type((args[0]))
         # Mypy bug: https://github.com/python/mypy/issues/12290
         elif is_typeddict(typ):  # type: ignore[unreachable]
             if typ == typed_dict:
                 return vol.Self, _no_extra
             return typed_dict_to_schema_dict(typ), _no_extra
-        elif typ == Any:
+        elif typ is Any:
             return object, _no_extra
+        elif typ is type(None): # types.NoneType was only introduces in python 3.10
+            return None, _no_extra
         elif isinstance(typ, type):
             return typ, _no_extra
-        raise ValueError("Don't know how to handle type annotation ", typ)
+        raise ValueError("Don't know how to handle type annotation ", typ)  # pragma: no cover
 
     schema = typed_dict_to_schema_dict(typed_dict)
 
@@ -121,8 +112,9 @@ def verify_typed_dict(value: Any, typed_dict: Type[T]) -> Any:
 class TypedDictVerifier(Generic[T]):
     _schema: vol.Schema
 
-    def __init__(self) -> None:
-        raise RuntimeError("This class can't be instantiated directly.")
+    def __init__(self, *, _root: bool = False) -> None:
+        if not _root:
+            raise RuntimeError("This class can't be instantiated directly.")
 
     def __class_getitem__(cls, typed_dict: Type[T]) -> Any:
         class _TypedDictVerifier(TypedDictVerifier):  # type: ignore[type-arg]
@@ -130,7 +122,7 @@ class TypedDictVerifier(Generic[T]):
             _schema: vol.Schema
 
             def __init__(self) -> None:
-                # Call to parent __init__ intentionally left out
+                super().__init__(_root=True)
                 self._schema = typed_dict_to_schema(self._typed_dict)
 
             def verify(self, value: Any) -> T:
