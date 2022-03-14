@@ -84,7 +84,7 @@ def typed_dict_to_schema(typed_dict: _TypedDictMeta) -> vol.Schema:
             return typed_dict_to_schema_dict(typ), _no_extra
         elif typ is Any:
             return object, _no_extra
-        elif typ is type(None): # types.NoneType was only introduces in python 3.10
+        elif isinstance(None, typ):  # types.NoneType was only introduces in python 3.10
             return None, _no_extra
         elif isinstance(typ, type):
             return typ, _no_extra
