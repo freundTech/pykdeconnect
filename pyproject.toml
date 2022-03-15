@@ -4,3 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.isort]
+multi_line_output = 5
+src_paths = ["pykdeconnect", "tests"]
+
+[tool.mypy]
+show_error_codes = true
+strict = true
+warn_unreachable = true
+files = ["pykdeconnect"]
