@@ -91,14 +91,7 @@ class PluginRegistry:
 
         return self.get_plugin(device, plugin_class)
 
-    def is_plugin_compatible(
-            self,
-            device: KdeConnectDevice,
-            plugin_class: Type[Plugin] | None
-    ) -> bool:
-        if plugin_class is None:
-            return True
-
+    def is_plugin_compatible(self, device: KdeConnectDevice, plugin_class: Type[Plugin]) -> bool:
         try:
             self._check_plugin_compatibility(device, plugin_class)
         except IncompatiblePluginError:
