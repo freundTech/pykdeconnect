@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import sys
-from typing import TypedDict, List, Set, FrozenSet, Optional, Any, Union, Literal, Annotated
+from typing import (
+    Annotated, Any, FrozenSet, List, Literal, Optional, Set, TypedDict, Union
+)
 
 import pytest
-from typing_extensions import Required, NotRequired
 import voluptuous as vol
+from typing_extensions import NotRequired, Required
 from voluptuous import MultipleInvalid
 
-from pykdeconnect.vol_extra import typed_dict_to_schema, TypedDictVerifier
+from pykdeconnect.vol_extra import TypedDictVerifier, typed_dict_to_schema
 
 
 # vol.Any doesn't come with a proper __eq__ method
