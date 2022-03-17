@@ -1,16 +1,22 @@
-from __future__ import annotations
-
+# Don't use `from __future__ import annotations` in this file, as it causes problems with resolving
+# types at runtime
 import json
 from typing import Any, List, Union
 
 from typing_extensions import NotRequired, TypedDict
 
 
+# We currently only support kdeconnect over ethernet.
+# When using other transports this needs to be adjusted
+class EthernetPayloadInfo(TypedDict):
+    port: int
+
+
 class Payload(TypedDict):
     id: Union[int, str]  # KdeConnect on android sends int, but desktop sends str
     type: str
     payloadSize: NotRequired[int]
-    payloadTransferInfo: NotRequired[dict]  # type: ignore
+    payloadTransferInfo: NotRequired[EthernetPayloadInfo]  # type: ignore
 
 
 class AnyPayload(Payload):
@@ -49,5 +55,5 @@ def payload_to_bytes(payload: Payload) -> bytes:
     return json.dumps(payload).encode() + b'\n'
 
 
-def bytes_to_payload(b: bytes | bytearray) -> object:
+def bytes_to_payload(b: Union[bytes, bytearray]) -> object:
     return json.loads(b.decode())

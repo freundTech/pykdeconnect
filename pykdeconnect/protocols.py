@@ -184,7 +184,14 @@ class UpgradableProtocol(PayloadProtocol, ABC):
             self.ssl_context_factory.get_ssl_context(server_side, self._device),
             server_side=server_side
         ))
-        future.add_done_callback(lambda t: protocol.connection_made(t.result()))
+
+        def done_callback(f: Future):
+            if f.exception() is not None:
+                self._device.is_connected = False
+                raise f.exception()
+            protocol.connection_made(f.result())
+
+        future.add_done_callback(done_callback)
 
     def connection_lost(self, exc: Optional[Exception]) -> None:
         if self._device is None:

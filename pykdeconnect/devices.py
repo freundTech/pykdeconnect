@@ -10,7 +10,7 @@ from cryptography.x509 import Certificate
 from .const import KdeConnectDeviceType, PairingResult
 from .exceptions import NotConnectedError
 from .helpers import async_timeout
-from .payloads import IdentityPayload
+from .payloads import IdentityPayload, Payload
 from .plugin import Plugin
 from .protocols import DeviceProtocol
 
@@ -115,6 +115,11 @@ class KdeConnectDevice:
         logger.debug('Unpaired device "%s"', self.device_name)
         if self.pairing_future is not None:
             self.pairing_future.set_result(PairingResult.REJECTED)
+
+    async def send_payload(self, payload: Payload):
+        if self.protocol is None:
+            raise NotConnectedError()
+        self.protocol.send_payload(payload)
 
     async def close_connection(self) -> None:
         if self.protocol is None:

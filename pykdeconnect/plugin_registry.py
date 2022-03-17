@@ -14,10 +14,13 @@ P = TypeVar('P', bound=Plugin)
 T = TypeVar('T')
 
 
+# These are stored as strings to prevent importing them if load_builtin_plugins is False
 builtins_plugins = [
     "pykdeconnect.plugins.ping.PingReceiverPlugin",
     "pykdeconnect.plugins.ping.PingSenderPlugin",
     "pykdeconnect.plugins.battery.BatteryReceiverPlugin",
+    "pykdeconnect.plugins.notification.NotificationReceiverPlugin",
+    "pykdeconnect.plugins.notification.NotificationSenderPlugin"
 ]
 
 
