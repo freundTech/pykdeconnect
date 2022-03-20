@@ -150,20 +150,3 @@ def test_any():
     assert schema == vol.Schema({
         'a': object
     })
-
-
-def test_typed_dict_verifier():
-    class Test(TypedDict):
-        a: int
-
-    verifier = TypedDictVerifier[Test]()
-
-    verifier.verify({'a': 10})
-
-    with pytest.raises(MultipleInvalid):
-        verifier.verify({'a': "foo"})
-
-
-def test_type_dict_verifier_init():
-    with pytest.raises(RuntimeError):
-        TypedDictVerifier()
