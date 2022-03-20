@@ -1,7 +1,7 @@
 import sys
 import warnings
 
-from setuptools import setup, Extension
+from setuptools import Extension, setup
 from setuptools.dist import Distribution
 
 # ccompiler isn't ported to setuptools yet
