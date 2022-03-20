@@ -4,10 +4,8 @@ from configparser import ConfigParser, DuplicateSectionError
 from pathlib import Path
 from typing import Optional, Set
 
-from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.types import PRIVATE_KEY_TYPES
-from cryptography.hazmat.primitives.serialization import load_pem_private_key
-from cryptography.x509 import Certificate, load_pem_x509_certificate
+from cryptography.x509 import Certificate
 
 from .const import KdeConnectDeviceType
 from .devices import KdeConnectDevice
@@ -149,8 +147,7 @@ class FileStorage(AbstractStorage):
         cert = device.certificate
         assert cert is not None
 
-        with open(self._get_device_cert_path(device.device_id), "wb+") as f:
-            f.write(cert.public_bytes(serialization.Encoding.PEM))
+        CertificateHelper.save_certificate(self._get_device_cert_path(device.device_id), cert)
 
     def remove_device(self, device: KdeConnectDevice) -> None:
         self._config.remove_section(device.device_id)
@@ -195,16 +192,10 @@ class FileStorage(AbstractStorage):
         if not self._config.has_section(device_id):
             return None
 
-        with open(path, 'rb') as f:
-            data = f.read()
-            return load_pem_x509_certificate(data)
+        return CertificateHelper.load_certificate(path)
 
     def _load_private_key(self) -> None:
-        with open(self.private_key_path, 'rb') as f:
-            data = f.read()
-            self._private_key = load_pem_private_key(data, None)
+        self._private_key = CertificateHelper.load_private_key(self.private_key_path)
 
     def _load_certificate(self) -> None:
-        with open(self.cert_path, 'rb') as f:
-            data = f.read()
-            self._cert = load_pem_x509_certificate(data)
+        self._cert = CertificateHelper.load_certificate(self.cert_path)
