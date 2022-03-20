@@ -1,0 +1,34 @@
+repos:
+  - repo: https://github.com/PyCQA/flake8
+    rev: 4.0.1
+    hooks:
+      - id: flake8
+        files: ^pykdeconnect/.+\.py$
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.10.0
+    hooks:
+      - id: isort
+        files: ^(pykdeconnect|tests)/.+\.py$
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.1.0
+    hooks:
+      - id: no-commit-to-branch
+        args:
+          - --branch=main
+      - id: check-merge-conflict
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+      - id: requirements-txt-fixer
+        files: ^(test-)?requirements.txt$
+      - id: trailing-whitespace
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v0.941
+    hooks:
+      - id: mypy
+        name: mypy
+        files: ^pykdeconnect/.+\.py$
+        args: []
+        additional_dependencies:
+          - cryptography
+          - typing_extensions>=4.1.1
+          - voluptuous>=0.12.2
