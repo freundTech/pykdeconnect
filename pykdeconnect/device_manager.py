@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Awaitable, Callable, Optional, Set
+from collections.abc import Awaitable, Callable, ValuesView
 
 from .devices import KdeConnectDevice
 from .storage import AbstractStorage
@@ -15,32 +15,41 @@ DeviceCallback = Callable[[KdeConnectDevice], Awaitable[None]]
 
 
 class DeviceManager:
-    connected_devices: dict[str, KdeConnectDevice]
+    _connected_devices: dict[str, KdeConnectDevice]
 
     _storage: AbstractStorage
 
-    _pairing_callback: Optional[PairingCallback] = None
+    _pairing_callback: PairingCallback | None = None
 
-    _device_connected_callbacks: Set[DeviceCallback]
-    _device_disconnected_callbacks: Set[DeviceCallback]
+    _device_connected_callbacks: set[DeviceCallback]
+    _device_disconnected_callbacks: set[DeviceCallback]
 
     def __init__(self, storage: AbstractStorage) -> None:
         self._storage = storage
 
-        self.connected_devices = {}
+        self._connected_devices = {}
 
         self._device_connected_callbacks = set()
         self._device_disconnected_callbacks = set()
 
-    def get_device(self, device_id: str) -> Optional[KdeConnectDevice]:
-        if device_id in self.connected_devices:
-            return self.connected_devices[device_id]
+    def add_device(self, device: KdeConnectDevice) -> None:
+        self._connected_devices[device.device_id] = device
+
+    def remove_device(self, device: KdeConnectDevice) -> None:
+        del self._connected_devices[device.device_id]
+
+    def get_device(self, device_id: str) -> KdeConnectDevice | None:
+        if device_id in self._connected_devices:
+            return self._connected_devices[device_id]
 
         return self._storage.load_device(device_id)
 
+    def get_devices(self) -> ValuesView[KdeConnectDevice]:
+        return self._connected_devices.values()
+
     async def disconnect_all(self) -> None:
         await asyncio.gather(
-            *(device.close_connection() for device in self.connected_devices.values())
+            *(device.close_connection() for device in self._connected_devices.values())
         )
 
     def set_pairing_callback(self, callback: PairingCallback) -> None:
@@ -59,20 +68,20 @@ class DeviceManager:
                 '"%s" requested pairing, but no pairing callback was set. Rejecting.',
                 device.device_name
             )
-            device.unpair()
+            device.reject_pair()
 
     def unpair(self, device: KdeConnectDevice) -> None:
         self._storage.remove_device(device)
         device.set_unpaired()
 
     async def device_connected(self, device: KdeConnectDevice) -> None:
-        callbacks = [callback(device) for callback in self._device_connected_callbacks]
-        callbacks.append(device.device_connected())
+        callbacks = {callback(device) for callback in self._device_connected_callbacks}
+        callbacks.add(device.device_connected())
         await asyncio.gather(*callbacks)
 
     async def device_disconnected(self, device: KdeConnectDevice) -> None:
-        callbacks = [callback(device) for callback in self._device_disconnected_callbacks]
-        callbacks.append(device.device_disconnected())
+        callbacks = {callback(device) for callback in self._device_disconnected_callbacks}
+        callbacks.add(device.device_disconnected())
         await asyncio.gather(*callbacks)
 
     def register_device_connected_callback(self, callback: DeviceCallback) -> None:

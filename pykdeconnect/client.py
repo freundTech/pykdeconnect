@@ -174,13 +174,13 @@ class KdeConnectClient:
     @property
     def pairable_devices(self) -> list[KdeConnectDevice]:
         return [
-            d for d in self._device_manager.connected_devices.values()
+            d for d in self._device_manager.get_devices()
             if not d.is_paired
         ]
 
     @property
     def connected_devices(self) -> dict[str, KdeConnectDevice]:
-        return self._device_manager.connected_devices
+        return {d.device_id: d for d in self._device_manager.get_devices()}
 
     def set_pairing_callback(self, callback: PairingCallback) -> None:
         self._device_manager.set_pairing_callback(callback)

@@ -99,7 +99,7 @@ class UdpAdvertisementProtocol(PairingProtocol, asyncio.DatagramProtocol):
             logger.debug("Udp identity packet didn't contain tcpPort")
         else:
             device.is_connected = True
-            self._device_manager.connected_devices[device.device_id] = device
+            self._device_manager.add_device(device)
             loop = asyncio.get_running_loop()
             asyncio.create_task(
                 loop.create_connection(
@@ -191,7 +191,7 @@ class UpgradableProtocol(PayloadProtocol, ABC):
             # logger.warning(f'Lost connection before receiving identity packet')
             pass
         else:
-            del self._device_manager.connected_devices[self._device.device_id]
+            self._device_manager.remove_device(self._device)
             logger.warning('Lost connection to "%s" before starting tls', self._device.device_name)
             if exc is not None:
                 logger.warning(exc, exc_info=True)
@@ -223,7 +223,7 @@ class TcpServerSideProtocol(PairingProtocol, UpgradableProtocol):
             logger.warning("Device with existing connection tried to connect again. "
                            "Ignoring")
         else:
-            self._device_manager.connected_devices[self._device.device_id] = self._device
+            self._device_manager.add_device(self._device)
             self.start_connection(server_side=False)
 
 
@@ -285,7 +285,7 @@ class DeviceProtocol(PayloadProtocol):
 
     def connection_lost(self, exc: Optional[Exception]) -> None:
         logger.debug("Connection lost to %s", self._device.device_name)
-        del self._device_manager.connected_devices[self._device.device_id]
+        self._device_manager.remove_device(self._device)
         self._device.set_protocol(None)
 
         asyncio.create_task(self._device_manager.device_disconnected(self._device))
