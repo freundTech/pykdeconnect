@@ -5,6 +5,7 @@ import pytest
 import voluptuous as vol
 
 from pykdeconnect.payloads import AnyPayload
+from pykdeconnect.plugin_registry import PluginRegistry
 from pykdeconnect.plugins.battery import (
     BatteryPayload, BatteryReceiverPlugin, BatteryThreshold
 )
@@ -23,6 +24,11 @@ payload: BatteryPayload = {
         "thresholdEvent": BatteryThreshold.NONE.value,
     }
 }
+
+
+def test_register_battery_plugin():
+    plugin_registry = PluginRegistry(load_builtin_plugins=False)
+    plugin_registry.register_plugin(BatteryReceiverPlugin)
 
 
 @pytest.mark.asyncio
