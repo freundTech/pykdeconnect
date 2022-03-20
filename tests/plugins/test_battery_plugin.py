@@ -13,6 +13,7 @@ from pykdeconnect.plugins.battery import (
 def fake_timestamp():
     return 1559901600000
 
+
 payload: BatteryPayload = {
     "id": fake_timestamp(),
     "type": "kdeconnect.battery",
