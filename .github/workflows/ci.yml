@@ -49,7 +49,7 @@ jobs:
       - name: Run tox
         run: tox -e ${{ matrix.toxenv }} --skip-pkg-install
       - name: Rename coverage file
-        run: test -f .coverage && mv .coverage .coverage.${{ matrix.toxenv }}
+        run: (test -f .coverage && mv .coverage .coverage.${{ matrix.toxenv }}) || true
       - uses: actions/upload-artifact@v2
         with:
           name: coverage
