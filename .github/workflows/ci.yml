@@ -61,6 +61,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [test]
     steps:
+      - uses: actions/checkout@v2
       - name: Set up Python 3.10
         uses: actions/setup-python@v2
         with:
@@ -74,10 +75,10 @@ jobs:
           name: coverage
           path: coverage
       - name: Combine coverage files
-        run: coverage combine coverage
+        run: |
+          coverage combine coverage
+          coverage xml
       - uses: codecov/codecov-action@v2
-        with:
-          files: .coverage
 
 
   make_sdist:
