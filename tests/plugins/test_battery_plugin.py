@@ -1,11 +1,13 @@
 import asyncio
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import voluptuous as vol
 
 from pykdeconnect.payloads import AnyPayload
-from pykdeconnect.plugins.battery import BatteryReceiverPlugin, BatteryPayload, BatteryThreshold
+from pykdeconnect.plugins.battery import (
+    BatteryPayload, BatteryReceiverPlugin, BatteryThreshold
+)
 
 
 def fake_timestamp():
