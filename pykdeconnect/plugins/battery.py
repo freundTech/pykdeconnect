@@ -98,7 +98,7 @@ class BatteryReceiverPlugin(Plugin):
 
         await asyncio.gather(*callbacks)
 
-    async def request_battery(self) -> None:
+    async def _request_battery(self) -> None:
         request_payload: BatteryRequestPayload = {
             "id": get_timestamp(),
             "type": "kdeconnect.battery.request",
@@ -107,13 +107,13 @@ class BatteryReceiverPlugin(Plugin):
             }
         }
         if self.device.is_connected:
-            assert self.device.protocol is not None
-            self.device.protocol.send_payload(request_payload)
+            self.device.send_payload(request_payload)
 
     async def get_battery_state(self) -> BatteryState:
         loop = asyncio.get_running_loop()
-        self.battery_request_future = loop.create_future()
-        await self.request_battery()
+        if self.battery_request_future is None:
+            self.battery_request_future = loop.create_future()
+        await self._request_battery()
 
         return await self.battery_request_future
 

@@ -10,7 +10,7 @@ from cryptography.x509 import Certificate
 from .const import KdeConnectDeviceType, PairingResult
 from .exceptions import NotConnectedError
 from .helpers import async_timeout
-from .payloads import IdentityPayload
+from .payloads import IdentityPayload, Payload
 from .plugin import Plugin
 from .protocols import DeviceProtocol
 
@@ -32,7 +32,7 @@ class KdeConnectDevice:
 
     certificate: Optional[Certificate]
 
-    protocol: Optional[DeviceProtocol]
+    _protocol: Optional[DeviceProtocol]
     is_connected: bool = False
 
     wants_pairing: bool = False
@@ -57,7 +57,7 @@ class KdeConnectDevice:
         self.outgoing_capabilities = set(outgoing_capabilities)
         self.certificate = cert
 
-        self.protocol = None
+        self._protocol = None
 
         self.device_connected_callbacks = set()
         self.device_disconnected_callbacks = set()
@@ -75,33 +75,33 @@ class KdeConnectDevice:
         return result
 
     def request_pair(self) -> None:
-        if self.protocol is None:
+        if self._protocol is None:
             raise NotConnectedError()
-        self.protocol.send_pairing_payload(True)
+        self._protocol.send_pairing_payload(True)
         self.wants_pairing = True
 
     def unpair(self) -> None:
-        if self.protocol is None:
+        if self._protocol is None:
             raise NotConnectedError()
-        self.protocol.send_pairing_payload(False)
+        self._protocol.send_pairing_payload(False)
         self.set_unpaired()
 
     def confirm_pair(self) -> None:
-        if self.protocol is None:
+        if self._protocol is None:
             raise NotConnectedError()
-        self.protocol.send_pairing_payload(True)
+        self._protocol.send_pairing_payload(True)
         self.set_paired()
 
     def reject_pair(self) -> None:
-        if self.protocol is None:
+        if self._protocol is None:
             raise NotConnectedError()
-        self.protocol.send_pairing_payload(False)
+        self._protocol.send_pairing_payload(False)
 
     def set_paired(self, certificate: Certificate | None = None) -> None:
         if certificate is None:
-            if self.protocol is None:
+            if self._protocol is None:
                 raise NotConnectedError()
-            certificate = self.protocol.get_certificate()
+            certificate = self._protocol.get_certificate()
 
         self.certificate = certificate
         self.wants_pairing = False
@@ -116,10 +116,18 @@ class KdeConnectDevice:
         if self.pairing_future is not None:
             self.pairing_future.set_result(PairingResult.REJECTED)
 
+    def set_protocol(self, protocol: DeviceProtocol | None) -> None:
+        self._protocol = protocol
+
     async def close_connection(self) -> None:
-        if self.protocol is None:
+        if self._protocol is None:
             raise NotConnectedError()
-        await self.protocol.close_connection()
+        await self._protocol.close_connection()
+
+    def send_payload(self, payload: Payload) -> None:
+        if self._protocol is None:
+            raise NotConnectedError()
+        self._protocol.send_payload(payload)
 
     @property
     def is_paired(self) -> bool:
