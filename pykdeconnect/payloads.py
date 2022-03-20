@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import json
 from typing import Any, List, Union
 
@@ -49,5 +47,5 @@ def payload_to_bytes(payload: Payload) -> bytes:
     return json.dumps(payload).encode() + b'\n'
 
 
-def bytes_to_payload(b: bytes | bytearray) -> object:
+def bytes_to_payload(b: Union[bytes, bytearray]) -> object:
     return json.loads(b.decode())
