@@ -9,7 +9,8 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 from cryptography.hazmat.primitives.asymmetric.types import PRIVATE_KEY_TYPES
-from cryptography.x509 import Certificate
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
+from cryptography.x509 import Certificate, load_pem_x509_certificate
 from cryptography.x509.oid import NameOID
 
 
@@ -53,6 +54,11 @@ class CertificateHelper:
             ))
 
     @staticmethod
+    def load_private_key(path: Path) -> PRIVATE_KEY_TYPES:
+        with open(path, 'rb') as f:
+            return load_pem_private_key(f.read(), None)
+
+    @staticmethod
     def generate_cert(device_id: str, private_key: PRIVATE_KEY_TYPES) -> Certificate:
         subject = issuer = x509.Name([
             x509.NameAttribute(NameOID.COMMON_NAME, device_id),
@@ -80,3 +86,8 @@ class CertificateHelper:
     def save_certificate(path: Path, cert: Certificate) -> None:
         with open(path, "wb+") as f:
             f.write(cert.public_bytes(serialization.Encoding.PEM))
+
+    @staticmethod
+    def load_certificate(path: Path) -> Certificate:
+        with open(path, 'rb') as f:
+            return load_pem_x509_certificate(f.read())
