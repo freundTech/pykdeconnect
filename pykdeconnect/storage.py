@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import logging
 from abc import ABC, abstractmethod
 from configparser import ConfigParser, DuplicateSectionError
 from pathlib import Path
-from typing import Optional, Set
 
 from cryptography.hazmat.primitives.asymmetric.types import PRIVATE_KEY_TYPES
 from cryptography.x509 import Certificate
@@ -22,11 +23,11 @@ CONF_KEY_OUTGOING_CAPS = 'outgoing_capabilities'
 logger = logging.getLogger(__name__)
 
 
-def _capabilities_to_str(caps: Set[str]) -> str:
+def _capabilities_to_str(caps: set[str]) -> str:
     return "\n".join(caps)
 
 
-def _str_to_capabilities(string: str) -> Set[str]:
+def _str_to_capabilities(string: str) -> set[str]:
     return set(string.split("\n"))
 
 
@@ -36,19 +37,16 @@ class AbstractStorage(ABC):
     @abstractmethod
     def device_id(self) -> str:
         """Returns the device id of the local device."""
-        pass
 
     @property
     @abstractmethod
     def cert_path(self) -> Path:
         """Returns the path to this device's SSL certificate."""
-        pass
 
     @property
     @abstractmethod
     def private_key_path(self) -> Path:
         """Returns the path to this device's SSL private key."""
-        pass
 
     @abstractmethod
     def store_device(self, device: KdeConnectDevice) -> None:
@@ -57,7 +55,6 @@ class AbstractStorage(ABC):
 
         This method should store the devices SSL certificate.
         """
-        pass
 
     @abstractmethod
     def remove_device(self, device: KdeConnectDevice) -> None:
@@ -66,12 +63,10 @@ class AbstractStorage(ABC):
 
         This method should delete the devices SSL certificate.
         """
-        pass
 
     @abstractmethod
-    def load_device(self, device_id: str) -> Optional[KdeConnectDevice]:
+    def load_device(self, device_id: str) -> KdeConnectDevice | None:
         """Try loading a device from storage."""
-        pass
 
 
 class FileStorage(AbstractStorage):
@@ -154,7 +149,7 @@ class FileStorage(AbstractStorage):
         self._save()
         self._get_device_cert_path(device.device_id).unlink(missing_ok=True)
 
-    def load_device(self, device_id: str) -> Optional[KdeConnectDevice]:
+    def load_device(self, device_id: str) -> KdeConnectDevice | None:
         if not self._config.has_section(device_id):
             return None
 
@@ -184,7 +179,7 @@ class FileStorage(AbstractStorage):
     def _get_device_cert_path(self, device_id: str) -> Path:
         return self._device_certs_path / f"{device_id}.pem"
 
-    def _get_device_cert(self, device_id: str) -> Optional[Certificate]:
+    def _get_device_cert(self, device_id: str) -> Certificate | None:
         path = self._get_device_cert_path(device_id)
         if not path.exists():
             return None

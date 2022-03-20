@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Awaitable, Callable, Set
+from collections.abc import Awaitable, Callable
 
 from typing_extensions import TypedDict
 
@@ -21,7 +21,7 @@ class PingPayload(Payload):
 
 
 class PingReceiverPlugin(Plugin):
-    callbacks: Set[PingCallback]
+    callbacks: set[PingCallback]
     _payload_verifier: TypedDictVerifier[PingPayload]
 
     def __init__(self, device: KdeConnectDevice):
@@ -34,11 +34,11 @@ class PingReceiverPlugin(Plugin):
         return cls(device)
 
     @classmethod
-    def get_incoming_payload_types(cls) -> Set[str]:
+    def get_incoming_payload_types(cls) -> set[str]:
         return {"kdeconnect.ping"}
 
     @classmethod
-    def get_outgoing_payload_types(cls) -> Set[str]:
+    def get_outgoing_payload_types(cls) -> set[str]:
         return set()
 
     async def handle_payload(self, payload: Payload) -> None:
@@ -59,9 +59,9 @@ class PingSenderPlugin(Plugin):
         return cls(device)
 
     @classmethod
-    def get_incoming_payload_types(cls) -> Set[str]:
+    def get_incoming_payload_types(cls) -> set[str]:
         return set()
 
     @classmethod
-    def get_outgoing_payload_types(cls) -> Set[str]:
+    def get_outgoing_payload_types(cls) -> set[str]:
         return {"kdeconnect.ping"}

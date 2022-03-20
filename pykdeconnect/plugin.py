@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Set
+from typing import TYPE_CHECKING
 
 from .payloads import Payload
 
@@ -17,19 +17,19 @@ class Plugin(ABC):
 
     @classmethod
     @abstractmethod
-    def get_incoming_payload_types(cls) -> Set[str]:
-        pass
+    def get_incoming_payload_types(cls) -> set[str]:
+        """Returns the payload types this plugin can receive."""
 
     @classmethod
     @abstractmethod
-    def get_outgoing_payload_types(cls) -> Set[str]:
-        pass
+    def get_outgoing_payload_types(cls) -> set[str]:
+        """Returns the payload types this plugin can send."""
 
     @classmethod
     @abstractmethod
     def create_instance(cls, device: KdeConnectDevice) -> Plugin:
-        pass
+        """Creates a new plugin instance for the specified device."""
 
     @abstractmethod
     async def handle_payload(self, payload: Payload) -> None:
-        pass
+        """Handles an incoming payload."""

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 from asyncio import BaseTransport
@@ -6,7 +8,6 @@ from pathlib import Path
 from socket import (
     AF_INET, SO_BROADCAST, SOCK_DGRAM, SOCK_STREAM, SOL_SOCKET, socket
 )
-from typing import Optional
 
 from .const import (
     ADDRESS_BROADCAST, KDECONNECT_PORT, KDECONNECT_PORT_MAX,
@@ -27,7 +28,7 @@ class ClientInfo:
     device_name: str
     device_type: KdeConnectDeviceType
     protocol_version: KdeConnectProtocolVersion
-    port: Optional[int]
+    port: int | None
 
     _storage: AbstractStorage
     _plugin_registry: PluginRegistry
@@ -39,7 +40,7 @@ class ClientInfo:
             device_name: str,
             device_type: KdeConnectDeviceType,
             protocol_version: KdeConnectProtocolVersion,
-            port: Optional[int] = None
+            port: int | None = None
     ) -> None:
         self._storage = storage
         self._plugin_registry = plugin_registry
@@ -88,8 +89,8 @@ class KdeConnectClient:
     _storage: AbstractStorage
     _plugin_registry: PluginRegistry
 
-    _udp_transport: Optional[BaseTransport] = None
-    _tcp_server: Optional[Server] = None
+    _udp_transport: BaseTransport | None = None
+    _tcp_server: Server | None = None
 
     def __init__(self, device_name: str, device_type: KdeConnectDeviceType,
                  storage: AbstractStorage,
@@ -196,7 +197,7 @@ class KdeConnectClient:
         finally:
             sock.close()
 
-    def get_device(self, device_id: str) -> Optional[KdeConnectDevice]:
+    def get_device(self, device_id: str) -> KdeConnectDevice | None:
         return self._device_manager.get_device(device_id)
 
     @property

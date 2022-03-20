@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import asyncio
 from asyncio import Future
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Awaitable, Callable, Optional
 
 from typing_extensions import NotRequired, TypedDict
 
@@ -52,10 +52,10 @@ BatteryLowCallback = Callable[[bool], Awaitable[None]]
 
 
 class BatteryReceiverPlugin(Plugin):
-    current_charge: Optional[int]
-    charging: Optional[bool]
+    current_charge: int | None
+    charging: bool | None
 
-    battery_request_future: Optional[Future[BatteryState]] = None
+    battery_request_future: Future[BatteryState] | None = None
     battery_charge_changed_callbacks: set[BatteryChargeCallback]
     battery_charging_changed_callbacks: set[BatteryChargingCallback]
     battery_low_changed_callbacks: set[BatteryLowCallback]
