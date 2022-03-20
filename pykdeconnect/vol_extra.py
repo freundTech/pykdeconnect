@@ -5,20 +5,23 @@ Might be published as a standalone library later.
 from __future__ import annotations
 
 import sys
+from collections.abc import Callable
 from types import GenericAlias
+from typing import (
+    Annotated, Any, Generic, Literal, Tuple, TypeVar, Union, cast
+)
 
-# use typing_extensions versions for compatibility with types from typing_extensions
+# isort: off
 # New in 3.11
-# New in 3.10
 from typing_extensions import NotRequired as NotRequired_ex
 from typing_extensions import Required as Required_ex
+# New in 3.10
 from typing_extensions import is_typeddict  # type: ignore
+# use typing_extensions versions for compatibility with types from typing_extensions
 from typing_extensions import get_args, get_origin, get_type_hints
 
-from typing import (  # type: ignore # isort: skip
-    Any, Annotated, Callable, Literal, Tuple, Type, TypeVar, Union,
-    _GenericAlias, _TypedDictMeta, _SpecialGenericAlias, cast, Generic
-)
+from typing import _GenericAlias, _SpecialGenericAlias, _TypedDictMeta  # type: ignore[attr-defined]
+# isort: on
 
 if sys.version_info >= (3, 10):
     from types import UnionType
@@ -116,7 +119,7 @@ class TypedDictVerifier(Generic[T]):
         if not _root:
             raise RuntimeError("This class can't be instantiated directly.")
 
-    def __class_getitem__(cls, typed_dict: Type[T]) -> Any:
+    def __class_getitem__(cls, typed_dict: type[T]) -> Any:
         class _TypedDictVerifier(TypedDictVerifier):  # type: ignore[type-arg]
             _typed_dict = typed_dict
             _schema: vol.Schema

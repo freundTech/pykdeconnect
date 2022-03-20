@@ -3,7 +3,8 @@ from __future__ import annotations
 import asyncio
 import logging
 from asyncio import Future
-from typing import Awaitable, Callable, Optional, TypeVar
+from collections.abc import Awaitable, Callable
+from typing import TypeVar
 
 from cryptography.x509 import Certificate
 
@@ -30,13 +31,13 @@ class KdeConnectDevice:
     incoming_capabilities: set[str]
     outgoing_capabilities: set[str]
 
-    certificate: Optional[Certificate]
+    certificate: Certificate | None
 
-    _protocol: Optional[DeviceProtocol]
+    _protocol: DeviceProtocol | None
     is_connected: bool = False
 
     wants_pairing: bool = False
-    pairing_future: Optional[Future[PairingResult]] = None
+    pairing_future: Future[PairingResult] | None = None
 
     device_connected_callbacks: set[ConnectionCallback]
     device_disconnected_callbacks: set[ConnectionCallback]
@@ -48,7 +49,7 @@ class KdeConnectDevice:
             device_type: KdeConnectDeviceType,
             incoming_capabilities: set[str],
             outgoing_capabilities: set[str],
-            cert: Optional[Certificate]
+            cert: Certificate | None
     ) -> None:
         self.device_name = device_name
         self.device_id = device_id

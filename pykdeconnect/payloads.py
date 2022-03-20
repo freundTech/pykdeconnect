@@ -1,5 +1,6 @@
+# This file can't use from __future__ import annotations.
 import json
-from typing import Any, List, Union
+from typing import Any, Union
 
 from typing_extensions import NotRequired, TypedDict
 
@@ -20,8 +21,8 @@ class IdentityPayloadBody(TypedDict):
     deviceName: str
     protocolVersion: int
     deviceType: str
-    incomingCapabilities: List[str]
-    outgoingCapabilities: List[str]
+    incomingCapabilities: list[str]
+    outgoingCapabilities: list[str]
     tcpPort: NotRequired[int]
 
 

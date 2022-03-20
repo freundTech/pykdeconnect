@@ -6,7 +6,7 @@ import ssl
 from abc import ABC, abstractmethod
 from asyncio import Future, Transport, transports
 from json import JSONDecodeError
-from typing import TYPE_CHECKING, Optional, Tuple, cast
+from typing import TYPE_CHECKING, cast
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.x509 import Certificate, load_der_x509_certificate
@@ -75,7 +75,7 @@ class UdpAdvertisementProtocol(PairingProtocol, asyncio.DatagramProtocol):
         logger.debug("UDP connection made")
         self._transport = transport
 
-    def datagram_received(self, data: bytes, addr: Tuple[str, int]) -> None:
+    def datagram_received(self, data: bytes, addr: tuple[str, int]) -> None:
         payload = bytes_to_payload(data)
         payload = self._any_payload_verifier.verify(payload)
         if payload["type"] != "kdeconnect.identity":
@@ -156,7 +156,7 @@ class PayloadProtocol(KdeConnectProtocol, ABC):
 
 
 class UpgradableProtocol(PayloadProtocol, ABC):
-    _device: Optional[devices.KdeConnectDevice]
+    _device: devices.KdeConnectDevice | None
     _plugin_registry: PluginRegistry
     _transport: transports.Transport
 
@@ -186,7 +186,7 @@ class UpgradableProtocol(PayloadProtocol, ABC):
         ))
         future.add_done_callback(lambda t: protocol.connection_made(t.result()))
 
-    def connection_lost(self, exc: Optional[Exception]) -> None:
+    def connection_lost(self, exc: Exception | None) -> None:
         if self._device is None:
             # logger.warning(f'Lost connection before receiving identity packet')
             pass
@@ -283,7 +283,7 @@ class DeviceProtocol(PayloadProtocol):
         asyncio.create_task(self._device_manager.device_connected(self._device))
         logger.debug("Upgraded connection to TLS: %s", self._device.device_name)
 
-    def connection_lost(self, exc: Optional[Exception]) -> None:
+    def connection_lost(self, exc: Exception | None) -> None:
         logger.debug("Connection lost to %s", self._device.device_name)
         self._device_manager.remove_device(self._device)
         self._device.set_protocol(None)
