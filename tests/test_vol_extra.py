@@ -142,6 +142,19 @@ def test_typeddict():
     })
 
 
+def test_self():
+    class Test(TypedDict):
+        a: Test
+
+    # PEP 563 limitation
+    globals()["Test"] = Test
+
+    schema = typed_dict_to_schema(Test)
+    assert schema == vol.Schema({
+        'a': vol.Self
+    })
+
+
 def test_any():
     class Test(TypedDict):
         a: Any
