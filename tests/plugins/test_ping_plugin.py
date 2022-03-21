@@ -6,14 +6,10 @@ from pykdeconnect.plugin_registry import PluginRegistry
 from pykdeconnect.plugins.ping import (
     PingPayload, PingReceiverPlugin, PingSenderPlugin
 )
-
-
-def fake_timestamp():
-    return 1591524000000
-
+from tests.utils import get_faketime, patch_timestamp
 
 payload: PingPayload = {
-        "id": fake_timestamp(),
+        "id": get_faketime(),
         "type": "kdeconnect.ping",
         "body": {}
     }
@@ -51,10 +47,10 @@ async def test_remove_ping_callback():
     plugin.unregister_ping_callback(callback)
     await plugin.handle_payload(payload)
 
-    callback.assert_not_called()
+    callback.assert_not_awaited()
 
 
-@patch("pykdeconnect.plugins.ping.get_timestamp", fake_timestamp)
+@patch_timestamp
 def test_get_battery_state():
     device = MagicMock()
     device.is_connected = True
