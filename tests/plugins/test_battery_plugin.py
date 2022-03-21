@@ -9,14 +9,10 @@ from pykdeconnect.plugin_registry import PluginRegistry
 from pykdeconnect.plugins.battery import (
     BatteryPayload, BatteryReceiverPlugin, BatteryThreshold
 )
-
-
-def fake_timestamp():
-    return 1591524000000
-
+from tests.utils import get_faketime, patch_timestamp, timeout
 
 payload: BatteryPayload = {
-    "id": fake_timestamp(),
+    "id": get_faketime(),
     "type": "kdeconnect.battery",
     "body": {
         "currentCharge": 81,
@@ -77,7 +73,7 @@ async def test_remove_battery_charge_changed_callback():
     plugin.unregister_charge_changed_callback(callback)
     await plugin.handle_payload(payload)
 
-    callback.assert_not_called()
+    callback.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -90,7 +86,7 @@ async def test_remove_battery_charging_changed_callback():
     plugin.unregister_charging_changed_callback(callback)
     await plugin.handle_payload(payload)
 
-    callback.assert_not_called()
+    callback.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -103,11 +99,12 @@ async def test_remove_battery_low_changed_callback():
     plugin.unregister_low_changed_callback(callback)
     await plugin.handle_payload(payload)
 
-    callback.assert_not_called()
+    callback.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-@patch("pykdeconnect.plugins.battery.get_timestamp", fake_timestamp)
+@timeout(10)
+@patch_timestamp
 async def test_get_battery_state():
     def send_response(request_payload):
         asyncio.create_task(plugin.handle_payload(payload))
@@ -120,7 +117,7 @@ async def test_get_battery_state():
     battery_state = await plugin.get_battery_state()
 
     device.send_payload.assert_called_once_with({
-        "id": fake_timestamp(),
+        "id": get_faketime(),
         "type": "kdeconnect.battery.request",
         "body": {
             "request": True
@@ -138,7 +135,7 @@ async def test_invalid_payload():
     plugin = BatteryReceiverPlugin.create_instance(device)
 
     payload: AnyPayload = {
-        "id": fake_timestamp(),
+        "id": get_faketime(),
         "type": "kdeconnect.other",
         "body": {}
     }

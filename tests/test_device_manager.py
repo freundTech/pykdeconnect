@@ -174,12 +174,12 @@ async def test_device_manager_remove_connected_callback():
 
     await device_manager.device_connected(device)
 
-    callback.assert_not_called()
+    callback.assert_not_awaited()
     device.device_connected.assert_awaited_once()
 
 
 @pytest.mark.asyncio
-async  def test_device_manager_remove_disconnected_callback():
+async def test_device_manager_remove_disconnected_callback():
     device = MagicMock()
     device.device_disconnected = AsyncMock()
     device.device_id = "foo"
@@ -194,5 +194,5 @@ async  def test_device_manager_remove_disconnected_callback():
 
     await device_manager.device_disconnected(device)
 
-    callback.assert_not_called()
+    callback.assert_not_awaited()
     device.device_disconnected.assert_awaited_once()

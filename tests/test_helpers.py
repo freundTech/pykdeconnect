@@ -9,16 +9,12 @@ from cryptography.hazmat._oid import NameOID
 from pykdeconnect.helpers import (
     CertificateHelper, async_timeout, get_timestamp, keyboard_interrupt
 )
-from tests.utils import timeout
-
-TIMESTAMP = 1591524000
+from tests.utils import get_faketime, patch_timestamp, timeout
 
 
-@patch("pykdeconnect.helpers.datetime")
-def test_timestamp(mocktime):
-    mocktime.now = MagicMock(return_value=datetime.fromtimestamp(TIMESTAMP))
-
-    assert get_timestamp() == TIMESTAMP * 1000
+@patch_timestamp
+def test_timestamp():
+    assert get_timestamp() == get_faketime()
 
 
 @pytest.mark.asyncio
