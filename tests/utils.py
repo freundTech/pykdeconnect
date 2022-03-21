@@ -1,4 +1,5 @@
 import asyncio
+import functools
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
@@ -25,9 +26,18 @@ def patch_timestamp(func=_SENTINEL):
     if func is _SENTINEL:
         return patch_timestamp
 
-    def run(*args, **kwargs):
-        with patch("pykdeconnect.helpers.datetime") as mocktime:
-            mocktime.now = MagicMock(return_value=datetime.fromtimestamp(_TIMESTAMP))
-            func(*args, **kwargs)
+    if asyncio.iscoroutinefunction(func):
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            with patch("pykdeconnect.helpers.datetime") as mocktime:
+                mocktime.now = MagicMock(return_value=datetime.fromtimestamp(_TIMESTAMP))
+                await func(*args, **kwargs)
 
-    return run
+    else:
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            with patch("pykdeconnect.helpers.datetime") as mocktime:
+                mocktime.now = MagicMock(return_value=datetime.fromtimestamp(_TIMESTAMP))
+                func(*args, **kwargs)
+
+    return wrapper
