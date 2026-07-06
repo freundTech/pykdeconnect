@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling", "scikit-build-core[hatchling]"]
+build-backend = "hatchling.build"
 
 [project]
 name = "pykdeconnect"
@@ -57,10 +57,7 @@ coverage = [
     "coverage[toml]",
 ]
 
-[tool.setuptools.packages.find]
-
-[tool.setuptools.package-data]
-pykdeconnect = ["py.typed"]
+[tool.hatch.build.targets.wheel.hooks.scikit-build]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
