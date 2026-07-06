@@ -2,6 +2,34 @@
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
+[project]
+name = "pykdeconnect"
+version = "0.1.2a1"
+requires-python = ">=3.9"
+authors = [{ name = "Adrian Freund", email = "adrian@freund.io" }]
+description = "A python implementation of the kdeconnect protocol"
+keywords = ["kde", "connect"]
+license = "MIT"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Utilities",
+    "Typing :: Typed",
+]
+
+dependencies = [
+    "cryptography>=35.0.0",
+    "typing_extensions>=4.1.1,<5.0",
+    "voluptuous>=0.12.2",
+]
+
+[tool.setuptools.packages.find]
+
+[tool.setuptools.package-data]
+pykdeconnect = ["py.typed"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "strict"
@@ -25,3 +53,4 @@ exclude_lines = [
     "if TYPE_CHECKING:",
     "assert False"
 ]
+
