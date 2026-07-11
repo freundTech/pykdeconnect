@@ -8,7 +8,6 @@ from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
-from cryptography.hazmat.primitives.asymmetric.types import PRIVATE_KEY_TYPES
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from cryptography.x509 import Certificate, load_pem_x509_certificate
 from cryptography.x509.oid import NameOID
@@ -45,7 +44,7 @@ class CertificateHelper:
         return key
 
     @staticmethod
-    def save_private_key(path: Path, key: PRIVATE_KEY_TYPES) -> None:
+    def save_private_key(path: Path, key: RSAPrivateKey) -> None:
         with open(path, 'wb+') as f:
             f.write(key.private_bytes(
                 encoding=serialization.Encoding.PEM,
@@ -54,12 +53,16 @@ class CertificateHelper:
             ))
 
     @staticmethod
-    def load_private_key(path: Path) -> PRIVATE_KEY_TYPES:
+    def load_private_key(path: Path) -> RSAPrivateKey:
         with open(path, 'rb') as f:
-            return load_pem_private_key(f.read(), None)
+            key = load_pem_private_key(f.read(), None)
+            if isinstance(key, RSAPrivateKey):
+                return key
+            else:
+                raise TypeError
 
     @staticmethod
-    def generate_cert(device_id: str, private_key: PRIVATE_KEY_TYPES) -> Certificate:
+    def generate_cert(device_id: str, private_key: RSAPrivateKey) -> Certificate:
         subject = issuer = x509.Name([
             x509.NameAttribute(NameOID.COMMON_NAME, device_id),
             x509.NameAttribute(NameOID.ORGANIZATION_NAME, "freundTech"),
