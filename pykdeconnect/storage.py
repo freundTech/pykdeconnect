@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from configparser import ConfigParser, DuplicateSectionError
 from pathlib import Path
 
-from cryptography.hazmat.primitives.asymmetric.types import PRIVATE_KEY_TYPES
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 from cryptography.x509 import Certificate
 
 from .const import KdeConnectDeviceType
@@ -75,7 +75,7 @@ class FileStorage(AbstractStorage):
     _private_key_path: Path
     _device_certs_path: Path
     _cert: Certificate
-    _private_key: PRIVATE_KEY_TYPES
+    _private_key: RSAPrivateKey
 
     def __init__(self, path: Path) -> None:
         self.path = path
