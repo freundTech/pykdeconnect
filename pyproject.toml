@@ -20,9 +20,41 @@ classifiers = [
 ]
 
 dependencies = [
-    "cryptography>=35.0.0",
+    "cryptography>=35.0.0,<37.0",
     "typing_extensions>=4.1.1,<5.0",
-    "voluptuous>=0.12.2",
+    "voluptuous>=0.12.2,<0.13",
+]
+
+[dependency-groups]
+dev = [
+    {include-group = "tox"},
+    {include-group = "pre-commit"},
+    {include-group = "lint"},
+    {include-group = "type-check"},
+    {include-group = "test"},
+]
+pre-commit = [
+    "pre-commit",
+]
+tox = [
+    "tox",
+    "tox-uv",
+]
+lint = [
+    "flake8",
+    "isort",
+]
+type-check = [
+    "mypy==0.941",
+]
+test = [
+    "pytest",
+    "pytest-asyncio>=0.17",
+    "pytest-cov",
+    {include-group = "coverage"},
+]
+coverage = [
+    "coverage[toml]",
 ]
 
 [tool.setuptools.packages.find]
