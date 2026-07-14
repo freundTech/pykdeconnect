@@ -5,6 +5,8 @@
 
 #include "_ssl.h"
 
+static PyTypeObject *type_sslcontext = NULL;
+
 static int always_pass_callback(int preverify_ok, X509_STORE_CTX *x509_ctx)
 {
     return 1;
@@ -12,15 +14,10 @@ static int always_pass_callback(int preverify_ok, X509_STORE_CTX *x509_ctx)
 
 PyDoc_STRVAR(set_verify_always_pass_doc, "Set's certificate validation to always pass");
 static PyObject* set_verify_always_pass(PyObject *self, PyObject *args) {
-    PyObject *mod_ssl;
-    PyTypeObject *type_sslcontext;
     PySSLContext *context;
-    int *always_pass;
+    int always_pass;
 
-    mod_ssl = PyImport_ImportModule("ssl");
-    type_sslcontext = (PyTypeObject*) PyObject_GetAttrString(mod_ssl, "SSLContext") ;
-
-    if (!PyArg_ParseTuple(args, "O!p", type_sslcontext, &context ,&always_pass)) {
+    if (!PyArg_ParseTuple(args, "O!p", type_sslcontext, &context, &always_pass)) {
         return NULL;
     }
 
@@ -32,9 +29,7 @@ static PyObject* set_verify_always_pass(PyObject *self, PyObject *args) {
         SSL_CTX_set_verify(context->ctx, verify_mode, NULL);
     }
 
-    Py_DECREF(mod_ssl);
     Py_RETURN_NONE;
-
 }
 
 static PyMethodDef ssl_workaround_methods[] = {
@@ -55,6 +50,18 @@ static struct PyModuleDef ssl_workaround_definition = {
 };
 
 PyMODINIT_FUNC PyInit_ssl_workaround(void) {
-    Py_Initialize();
+    PyObject *mod_ssl;
+
+    mod_ssl = PyImport_ImportModule("ssl");
+    if (mod_ssl == NULL) {
+        return NULL;
+    }
+
+    type_sslcontext = (PyTypeObject*) PyObject_GetAttrString(mod_ssl, "SSLContext") ;
+    Py_DECREF(mod_ssl);
+    if (type_sslcontext == NULL) {
+        return NULL;
+    }
+
     return PyModule_Create(&ssl_workaround_definition);
 }
