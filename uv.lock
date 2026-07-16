@@ -937,16 +937,16 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-coverage = [{ name = "coverage", extras = ["toml"] }]
+coverage = [{ name = "coverage", extras = ["toml"], specifier = ">6" }]
 dev = [
-    { name = "coverage", extras = ["toml"] },
+    { name = "coverage", extras = ["toml"], specifier = ">6" },
     { name = "flake8" },
     { name = "isort" },
     { name = "mypy", specifier = "==0.941" },
     { name = "pre-commit" },
-    { name = "pytest" },
+    { name = "pytest", specifier = ">7" },
     { name = "pytest-asyncio", specifier = ">=0.17" },
-    { name = "pytest-cov" },
+    { name = "pytest-cov", specifier = ">3" },
     { name = "tox" },
     { name = "tox-uv" },
 ]
@@ -956,10 +956,10 @@ lint = [
 ]
 pre-commit = [{ name = "pre-commit" }]
 test = [
-    { name = "coverage", extras = ["toml"] },
-    { name = "pytest" },
+    { name = "coverage", extras = ["toml"], specifier = ">6" },
+    { name = "pytest", specifier = ">7" },
     { name = "pytest-asyncio", specifier = ">=0.17" },
-    { name = "pytest-cov" },
+    { name = "pytest-cov", specifier = ">3" },
 ]
 tox = [
     { name = "tox" },

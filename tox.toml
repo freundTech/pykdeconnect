@@ -1,0 +1,59 @@
+requires = ["tox>=4", "tox-uv"]
+
+envlist = [
+    "clean",
+    "lint",
+    { product = [
+        ["test"],
+        { prefix = "py3.", start = 9, stop = 10 },
+        ["default", "lowest"],
+    ]},
+    { prefix = "typing-py3.", start = 9, stop = 10 },
+     "report",
+]
+
+[env_run_base]
+runner = "uv-venv-lock-runner"
+no_default_groups = true
+commands = [[
+  "python",
+  "-c",
+  "raise SystemExit('Environment with this name doesn\\'t exist')",
+]]
+
+[env_base.test]
+runner = "uv-venv-runner"
+factors = [{ prefix = "py3.", start = 9, stop = 10 }, ["default", "lowest"]]
+dependency_groups = ["test"]
+commands = [["pytest", "--cov", "--cov-append", "--cov-report="]]
+uv_resolution = { replace = "if", condition = "factor.lowest", then = "lowest-direct", else = "highest" }
+depends = ["clean"]
+
+[env_base.typing]
+factors = [{ prefix = "py3.", start = 9, stop = 10 }]
+dependency_groups = ["type-check"]
+commands = [["mypy", "src/pykdeconnect"]]
+
+[env.report]
+only_groups = ["coverage"]
+skip_install = true
+commands = [["coverage", "report"]]
+depends = [
+    { product = [
+        ["test"],
+        { prefix = "py3.", start = 9, stop = 10 },
+        ["default", "lowest"],
+    ]},
+]
+
+[env.clean]
+only_groups = ["coverage"]
+skip_install = true
+commands = [["coverage", "erase"]]
+
+[env.lint]
+only_groups = ["lint"]
+commands = [
+    ["isort", "--check-only", "src/pykdeconnect", "tests",],
+    ["flake8", "src/pykdeconnect"],
+]

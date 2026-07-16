@@ -48,13 +48,13 @@ type-check = [
     "mypy==0.941",
 ]
 test = [
-    "pytest",
+    "pytest>7",
     "pytest-asyncio>=0.17",
-    "pytest-cov",
+    "pytest-cov>3",
     {include-group = "coverage"},
 ]
 coverage = [
-    "coverage[toml]",
+    "coverage[toml]>6",
 ]
 
 [tool.hatch.build.targets.wheel.hooks.scikit-build]

@@ -20,19 +20,25 @@ jobs:
         include:
           - name: Test suite with python 3.9
             python-version: "3.9"
-            toxenv: "py39"
+            toxenv: "test-py3.9-default"
           - name: Test suite with python 3.10
             python-version: "3.10"
-            toxenv: "py310"
+            toxenv: "test-py3.10-default"
+          - name: Test suite with python 3.9 (lowest dependencies)
+            python-version: "3.9"
+            toxenv: "test-py3.9-lowest"
+          - name: Test suite with python 3.10 (lowest dependencies)
+            python-version: "3.10"
+            toxenv: "test-py3.10-lowest"
           - name: Run linters
             python-version: "3.10"
             toxenv: "lint"
           - name: Typecheck on python 3.9
             python-version: "3.9"
-            toxenv: "py39-typing"
+            toxenv: "typing-py3.9"
           - name: Typecheck on python 3.10
             python-version: "3.10"
-            toxenv: "py310-typing"
+            toxenv: "typing-py3.10"
     name: ${{ matrix.name }}
     env:
       UV_LOCKED: true
