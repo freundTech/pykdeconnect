@@ -65,16 +65,16 @@ asyncio_mode = "strict"
 
 [tool.isort]
 multi_line_output = 5
-src_paths = ["pykdeconnect", "tests"]
+src_paths = ["src/pykdeconnect", "tests"]
 
 [tool.mypy]
 show_error_codes = true
 strict = true
 warn_unreachable = true
-files = ["pykdeconnect"]
+files = ["src/pykdeconnect"]
 
 [tool.coverage.run]
-source = ["pykdeconnect"]
+source = ["src/pykdeconnect"]
 
 [tool.coverage.report]
 exclude_lines = [
